@@ -188,10 +188,10 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 
 > adjChecker :: Actor -> Actor -> [Detail] -> Adj
 > adjChecker a1 a2 dt
->   | not (elem a1 aa) && not (elem a2 aa)  = ([a1,a2], -3)
->   | not (elem a2 aa)                      = ([a1,a2], -2)
->   | not (elem a1 aa)                      = ([a1,a2], -1)
->   | otherwise                             = adjFind a1 a2 dt
+>   | not (elem a1 aa || elem a2 aa)  = ([a1,a2], -3)
+>   | not (elem a2 aa)                = ([a1,a2], -2)
+>   | not (elem a1 aa)                = ([a1,a2], -1)
+>   | otherwise                       = adjFind a1 a2 dt
 >   where aa = (rmdups . flatten . map snd) dt
 
 > main' :: Actor -> Actor -> IO ()
@@ -205,11 +205,6 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 TESTING OTHER THINGS
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-> test a = allShowDetails >>= (\d -> return $ fellowAdj (baseAdj a) d)
-> test2 a = allShowDetails >>= (\d -> return $ fellowAdj (fellowAdj (baseAdj a) d) d)
-
-> allActors = allShowDetails >>= (\d -> return $ (rmdups . flatten . map snd) d)
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 TODO
