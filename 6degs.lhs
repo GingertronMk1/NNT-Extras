@@ -13,6 +13,7 @@ We're first going to import some things:
 > import Data.Char
 > import qualified Data.Text as T
 > import qualified Data.Text.IO as TIO
+> import System.IO.Unsafe
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Now defining some data types:
@@ -145,21 +146,21 @@ at each end's link.
 Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+> allActors :: [Detail] -> [Actor]
+> allActors d = (rmdups . flatten . map snd) d
+
 > allFellows :: Actor -> [Detail] -> [Actor]
 > allFellows a dt = (filter (/=a) . rmdups . flatten . filter (elem a) . map snd) dt
-
-We're gonna start by taking a list of Adjs, and expanding it into a list of all further Adjs.
-(What I've done here is basically hack together a breadth-first tree traversal in Haskell using only lists. Pretty cool, eh?)
 
 > baseAdj :: Actor -> [Adj]
 > baseAdj a = [([a], 0)]
 
-> fellowAdj' :: [Adj] -> [Adj] -> [Detail] -> [Adj]
-> fellowAdj' [] as2 dt = []
-> fellowAdj' ((ad, i):as) as2 dt = [((a:ad), i+1) | a <- allFellows (head ad) dt, not (elem a ad || elem a ((flatten . map fst) as) || elem a ((flatten . map fst) as2))] ++ fellowAdj' as ((ad, i):as2) dt
-
 > fellowAdj :: [Adj] -> [Detail] -> [Adj]
-> fellowAdj aj dt = fellowAdj' aj [] dt
+> fellowAdj [] dt = []
+> fellowAdj as dt = (flatten . map (fellowGen as dt)) as
+
+> fellowGen :: [Adj] -> [Detail] -> Adj -> [Adj]
+> fellowGen as dt (ad, i) = [(a:ad, i+1) | a <- allFellows (head ad) dt, not (elem a ad || elem a ((flatten . map fst) as))]
 
 > adjFind' :: (Actor, Actor) -> [Adj] -> [Adj] -> [Detail] -> Adj
 > adjFind' (t,b) [] _ _             = ([t,b], 1000)
@@ -170,16 +171,16 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 >   | otherwise                     = adjFind' (t,b) as (a:as2) dt
 
 > adjFind :: Actor -> Actor -> [Detail] -> Adj
-> adjFind t a dt = adjFind' (t,a) (fellowAdj (baseAdj a) dt) [] dt
+> adjFind t a dt = adjFind' (t,a) (baseAdj a) [] dt
 
 > adjChecker :: Actor -> Actor -> [Detail] -> Adj
 > adjChecker a1 a2 dt
 >   | not (elem a1 aa || elem a2 aa)  = ([a1,a2], -3)
 >   | not (elem a2 aa)                = ([a1,a2], -2)
 >   | not (elem a1 aa)                = ([a1,a2], -1)
->   | a1 == a2                        = ([a1,a2], 0)
+>   | a1 == a2                        = ([a1,a2],  0)
 >   | otherwise                       = adjFind a1 a2 dt
->   where aa = (rmdups . flatten . map snd) dt
+>   where aa = allActors dt
 
 > main' :: Actor -> Actor -> IO ()
 > main' a1 a2 = allShowDetails >>= (\d -> putStrLn $ printLinks (adjChecker a1 a2 d) d)
@@ -192,3 +193,19 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 > allAndMe = do d <- allShowDetails
 >               return $ (sortBy (comparing snd) . filter ((<1000) . snd) . map (\(a,b) -> adjChecker a b d)) [(me, a) | a <- (rmdups . flatten . map snd) d, a /= me]
 >               where me = "Jack Ellis"
+
+> allCombos = do d <- allShowDetails
+>                let aa = allActors d
+>                return [adjChecker a1 a2 d | a1 <- aa, a2 <- aa, a1 /= a2]
+
+> test' [] d = []
+> test' a d = newList ++ test' newList d
+>             where newList = fellowAdj a d
+
+> test :: Actor -> IO [Adj]
+> test a = allShowDetails >>= (\d -> return $ test' (baseAdj a) d)
+> btest = test "????na Brown"
+
+
+> br = "????na Brown"
+> me = "Jack Ellis"
