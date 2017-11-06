@@ -190,8 +190,5 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 >           main' a1 a2
 
 > allAndMe = do d <- allShowDetails
->               return $ (sortBy (comparing snd) . filter ((<1000) . snd) . map (\(a,b) -> adjChecker a b d)) [("Jack Ellis", a) | a <- (rmdups . flatten . map snd) d, a /= "Jack Ellis"]
-
-
--> allCombos = do d <- allShowDetails
-->                let allActors
+>               return $ (sortBy (comparing snd) . filter ((<1000) . snd) . map (\(a,b) -> adjChecker a b d)) [(me, a) | a <- (rmdups . flatten . map snd) d, a /= me]
+>               where me = "Jack Ellis"
