@@ -13,10 +13,10 @@ We're first going to import some things:
 > import Data.Char
 > import qualified Data.Text as T
 > import qualified Data.Text.IO as TIO
+> import System.IO.Unsafe
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Now defining some data types:
-- A Tree for a recursive data type
 - And Actor and ShowName for type clarity
 - [Detail] for the list we're going to generate that contains all the important bits of a show
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -35,7 +35,7 @@ A few test variables now:
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 > limit :: Int
-> limit = 50
+> limit = 7
 > showsPath :: String
 > showsPath = "../history-project/_shows/"
 
@@ -171,9 +171,12 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 > baseAdj :: Actor -> [Adj]
 > baseAdj a = [([a], 0)]
 
+> fellowAdj' :: [Adj] -> [Adj] -> [Detail] -> [Adj]
+> fellowAdj' [] as2 dt = []
+> fellowAdj' ((ad, i):as) as2 dt = [((a:ad), i+1) | a <- allFellows (head ad) dt, not (elem a ad || elem a ((flatten . map fst) as) || elem a ((flatten . map fst) as2))] ++ fellowAdj' as ((ad, i):as2) dt
+
 > fellowAdj :: [Adj] -> [Detail] -> [Adj]
-> fellowAdj [] dt = []
-> fellowAdj ((ad, i):as) dt = [((a:ad), i+1) | a <- allFellows (head ad) dt, not (elem a ad)] ++ fellowAdj as dt
+> fellowAdj aj dt = fellowAdj' aj [] dt
 
 > adjFind' :: (Actor, Actor) -> [Adj] -> [Adj] -> [Detail] -> Adj
 > adjFind' (t,b) [] _ _             = ([t,b], 1000)
@@ -205,6 +208,12 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 TESTING OTHER THINGS
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+> unsafeData = unsafePerformIO allShowDetails
+
+> test' aj = newList ++ test' newList
+>            where newList = fellowAdj aj unsafeData
+> test = map fst $ test' (baseAdj "Julian Smith")
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 TODO
