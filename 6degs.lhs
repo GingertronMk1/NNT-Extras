@@ -177,6 +177,7 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 >   | not (elem a1 aa || elem a2 aa)  = ([a1,a2], -3)
 >   | not (elem a2 aa)                = ([a1,a2], -2)
 >   | not (elem a1 aa)                = ([a1,a2], -1)
+>   | a1 == a2                        = ([a1,a2], 0)
 >   | otherwise                       = adjFind a1 a2 dt
 >   where aa = (rmdups . flatten . map snd) dt
 
@@ -187,3 +188,10 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 > main = do a1 <- getLine
 >           a2 <- getLine
 >           main' a1 a2
+
+> allAndMe = do d <- allShowDetails
+>               return $ (sortBy (comparing snd) . filter ((<1000) . snd) . map (\(a,b) -> adjChecker a b d)) [("Jack Ellis", a) | a <- (rmdups . flatten . map snd) d, a /= "Jack Ellis"]
+
+
+-> allCombos = do d <- allShowDetails
+->                let allActors
