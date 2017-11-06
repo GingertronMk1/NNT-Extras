@@ -13,7 +13,6 @@ We're first going to import some things:
 > import Data.Char
 > import qualified Data.Text as T
 > import qualified Data.Text.IO as TIO
-> import System.IO.Unsafe
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Now defining some data types:
@@ -38,7 +37,7 @@ A few test variables now:
 > limit :: Int
 > limit = 50
 > showsPath :: String
-> showsPath = "../../../history-project/_shows/"
+> showsPath = "../history-project/_shows/"
 
 > me :: Actor
 > me = "Jack Ellis"
@@ -150,6 +149,9 @@ at each end's link.
 
 > printLinks :: Adj -> [Detail] -> String
 > printLinks (as, i) dt
+>   | i == -3     = headAndLast ++ " are not Actors with records."
+>   | i == -2     = last as ++ " is not an Actor with a record."
+>   | i == -1     = head as ++ " is not an Actor with a record."
 >   | i == 0      = "A person has 0 degrees of separation with themself by definition."
 >   | i == 1      = headAndLast ++ " were in " ++ findLink (head as) (last as) dt ++ " together\n\nThey have 1 degree of separation."
 >   | i == 1000   = headAndLast ++ " are not linked."
@@ -174,18 +176,26 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 > fellowAdj ((ad, i):as) dt = [((a:ad), i+1) | a <- allFellows (head ad) dt, not (elem a ad)] ++ fellowAdj as dt
 
 > adjFind' :: (Actor, Actor) -> [Adj] -> [Adj] -> [Detail] -> Adj
-> adjFind' (t,b) [] as2 dt          = ([t,b], 1000)
+> adjFind' (t,b) [] _ _             = ([t,b], 1000)
 > adjFind' (t,b) (a:as) as2 dt
 >   | snd a > limit                 = ([t,b], 1000)
->   | (head . fst) a == t           = a 
+>   | (head . fst) a == t           = a
 >   | null as                       = adjFind' (t,b) (fellowAdj (a:as2) dt) [] dt
 >   | otherwise                     = adjFind' (t,b) as (a:as2) dt
 
 > adjFind :: Actor -> Actor -> [Detail] -> Adj
-> adjFind t a dt = adjFind' (t,a) (baseAdj a) [] dt
+> adjFind t a dt = adjFind' (t,a) (fellowAdj (baseAdj a) dt) [] dt
+
+> adjChecker :: Actor -> Actor -> [Detail] -> Adj
+> adjChecker a1 a2 dt
+>   | not (elem a1 aa) && not (elem a2 aa)  = ([a1,a2], -3)
+>   | not (elem a2 aa)                      = ([a1,a2], -2)
+>   | not (elem a1 aa)                      = ([a1,a2], -1)
+>   | otherwise                             = adjFind a1 a2 dt
+>   where aa = (rmdups . flatten . map snd) dt
 
 > main' :: Actor -> Actor -> IO ()
-> main' a1 a2 = allShowDetails >>= (\d -> putStrLn $ printLinks (adjFind a1 a2 d) d)
+> main' a1 a2 = allShowDetails >>= (\d -> putStrLn $ printLinks (adjChecker a1 a2 d) d)
 
 > main :: IO ()
 > main = do a1 <- getLine
@@ -196,23 +206,13 @@ We're gonna start by taking a list of Adjs, and expanding it into a list of all 
 TESTING OTHER THINGS
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-> adjList a = newList-- ++ adjList newList
->             where newList = fellowAdj a unsafeData
+> test a = allShowDetails >>= (\d -> return $ fellowAdj (baseAdj a) d)
+> test2 a = allShowDetails >>= (\d -> return $ fellowAdj (fellowAdj (baseAdj a) d) d)
 
-> alTest a = (adjList . baseAdj) a
-
-
-> unsafeData :: [Detail]
-> unsafeData = unsafePerformIO allShowDetails
-
-> test = adjFind "Fart" me unsafeData
-
-> negative :: Int
-> negative = -1
-
+> allActors = allShowDetails >>= (\d -> return $ (rmdups . flatten . map snd) d)
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 TODO
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Add a list of already checked Actors to fellowAdj for optimisation purposes
+Implement a check to see if we've been via one Actor already so as to avoid spiralling
