@@ -133,13 +133,13 @@ at each end's link.
 
 > printLinks :: Adj -> [Detail] -> String
 > printLinks (as, i) dt
->   | i == -3     = headAndLast ++ " are not Actors with records."
->   | i == -2     = last as ++ " is not an Actor with a record."
->   | i == -1     = head as ++ " is not an Actor with a record."
->   | i == 0      = "A person has 0 degrees of separation with themself by definition."
->   | i == 1      = headAndLast ++ " were in " ++ findLink (head as) (last as) dt ++ " together\n\nThey have 1 degree of separation."
->   | i == 1000   = headAndLast ++ " are not linked."
->   | otherwise   = headAndLast ++ " are linked as follows:\n" ++ links as dt ++ "\nThey have " ++ [intToDigit i] ++ " degrees of separation."
+>   | i == -3   = headAndLast ++ " are not Actors with records."
+>   | i == -2   = last as ++ " is not an Actor with a record."
+>   | i == -1   = head as ++ " is not an Actor with a record."
+>   | i == 0    = "A person has 0 degrees of separation with themself by definition."
+>   | i == 1    = headAndLast ++ " were in " ++ findLink (head as) (last as) dt ++ " together\n\nThey have 1 degree of separation."
+>   | i == 1000 = headAndLast ++ " are not linked."
+>   | otherwise = headAndLast ++ " are linked as follows:\n" ++ links as dt ++ "\nThey have " ++ [intToDigit i] ++ " degrees of separation."
 >   where headAndLast = head as ++ " and " ++ last as
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -156,19 +156,18 @@ Finally, using everything above here, we can get two Actors, and return a printe
 > baseAdj a = [([a], 0)]
 
 > fellowAdj :: [Adj] -> [Detail] -> [Adj]
-> fellowAdj [] dt = []
 > fellowAdj as dt = (flatten . map (fellowGen as dt)) as
 
 > fellowGen :: [Adj] -> [Detail] -> Adj -> [Adj]
 > fellowGen as dt (ad, i) = [(a:ad, i+1) | a <- allFellows (head ad) dt, not (elem a ad || elem a ((flatten . map fst) as))]
 
 > adjFind' :: (Actor, Actor) -> [Adj] -> [Adj] -> [Detail] -> Adj
-> adjFind' (t,b) [] _ _             = ([t,b], 1000)
+> adjFind' (t,b) [] _ _   = ([t,b], 1000)
 > adjFind' (t,b) (a:as) as2 dt
->   | snd a > limit                 = ([t,b], 1000)
->   | (head . fst) a == t           = a
->   | null as                       = adjFind' (t,b) (fellowAdj (a:as2) dt) [] dt
->   | otherwise                     = adjFind' (t,b) as (a:as2) dt
+>   | snd a > limit       = ([t,b], 1000)
+>   | (head . fst) a == t = a
+>   | null as             = adjFind' (t,b) (fellowAdj (a:as2) dt) [] dt
+>   | otherwise           = adjFind' (t,b) as (a:as2) dt
 
 > adjFind :: Actor -> Actor -> [Detail] -> Adj
 > adjFind t a dt = adjFind' (t,a) (baseAdj a) [] dt
@@ -204,7 +203,8 @@ Finally, using everything above here, we can get two Actors, and return a printe
 
 > test :: Actor -> IO [Adj]
 > test a = allShowDetails >>= (\d -> return $ test' (baseAdj a) d)
-> btest = test "????na Brown"
+> btest = test br
+> mtest = main' br me
 
 
 > br = "????na Brown"
