@@ -34,9 +34,11 @@ A few test variables now:
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 > limit :: Int
-> limit = 50
+> limit = 10
 > showsPath :: String
 > showsPath = "../history-project/_shows/"
+> me :: Actor
+> me = "Jack Ellis"
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Helpers!
@@ -125,18 +127,21 @@ Finally, using everything above here, we can get two Actors, and return a printe
 > baseAdj :: Actor -> [Adj]
 > baseAdj a = [([a], 0)]
 
-> fellowAdj2 [] _ _               = []
-> fellowAdj2 ((a, i):adjs) d done = [(new:a, i+1) | new <- newFellows] ++ fellowAdj2 adjs d (newFellows ++ done)
->                                   where newFellows = [nf | nf <- allFellows (head a) d, not (elem nf done)]
+> fellowAdj' [] _ _               = []
+> fellowAdj' ((a, i):adjs) d done = [(new:a, i+1) | new <- newFellows] ++ fellowAdj' adjs d (newFellows ++ done)
+>                                   where newFellows = [nf | nf <- allFellows (head a) d, not (elem nf done || elem nf a)]
 
-> fellowAdj2' as d done = newList ++ fellowAdj2' newList d newDone
->                         where newList = fellowAdj2 as d done
+> fellowAdj :: [Adj] -> [Detail] -> [Actor] -> [Adj]
+> fellowAdj [] _ _    = []
+> fellowAdj as d done = newList ++ fellowAdj newList d newDone
+>                         where newList = fellowAdj' as d done
 >                               newDone = map (head . fst) newList
 
-> fa2Inf a d = fellowAdj2' (baseAdj a) d []
+> allAdj :: Actor -> [Detail] -> [Adj]
+> allAdj a d = fellowAdj (baseAdj a) d []
 
 > adjLim :: Actor -> [Detail] -> [Adj]
-> adjLim a d = takeWhile ((< limit) . snd) (fa2Inf a d)
+> adjLim a d = takeWhile ((<= limit) . snd) (allAdj a d)
 
 > adjSearch :: Actor -> Actor -> [Detail] -> Adj
 > adjSearch a1 a2 d = if null alList then ([a1,a2], 1000) else head alList
@@ -162,7 +167,7 @@ Finally, using everything above here, we can get two Actors, and return a printe
 >   | i == -2   = last as ++ " is not an Actor with a record."
 >   | i == -1   = head as ++ " is not an Actor with a record."
 >   | i == 0    = head as ++ " has 0 degrees of separation with themself by definition."
->   | i == 1000 = headAndLast ++ " are not linked, or there are more than " ++ [intToDigit limit] ++ " degrees of separation"
+>   | i == 1000 = headAndLast ++ " are not linked."
 >   | otherwise = headAndLast ++ " are linked as follows:\n" ++ links as d ++ "\nThey have " ++ [intToDigit i] ++ " degrees of separation."
 >   where (as, i) = adjCheck a1 a2 d
 >         headAndLast = head as ++ " and " ++ last as
@@ -176,21 +181,14 @@ Finally, using everything above here, we can get two Actors, and return a printe
 >           main' a1 a2
 
 > ppAdj :: Adj -> String
-> ppAdj (as, i) = "([" ++ ((flatten . intersperse ", ") as) ++ "], " ++ [intToDigit i] ++ ")\n"
+> ppAdj (as, i)
+>   | i == 1000 = ""
+>   | otherwise = "([" ++ ((flatten . intersperse ", ") as) ++ "], " ++ [intToDigit i] ++ ")\n"
 
--> adjTest a = allShowDetails >>= (\d -> (return . length) $ adjLim a d)
+> allCombos d = [(a1,a2) | a1 <- allActors d, a2 <- allActors d, a1 /= a2]
 
-> adjTest a = allShowDetails >>= (\d -> (return . sort . map (head . fst)) $ adjLim a d)
+> alTest a = allShowDetails >>= (\d -> return $ adjLim a d)
 
--> genTest n = allShowDetails >>= (\d -> (return . length . takeWhile ((<=n) . snd)) $ fellowGen2 (baseAdj me) d [])
+-> test a = allShowDetails >>= (\d -> (return) $ adjLim a d)
 
-> br = "????na Brown"
-> me = "Jack Ellis"
-> fr = "Fran Roper"
-
--> allAndMe = do d <- allShowDetails
-->               (putStrLn . flatten . map (ppAdj . (\(a,b) -> adjChecker a b d))) (allCombos d)
-
--> allCombos d = [(a1, a2) | a1 <- aa, a2 <- aa, a1 /= a2]
-->               where aa = allActors d
-
+> test = allShowDetails >>= (\d -> (putStrLn . flatten . map (ppAdj . (\(a1,a2) -> adjCheck a1 a2 d))) (allCombos d))
