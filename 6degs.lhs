@@ -142,7 +142,8 @@ Finally, using everything above here, we can get two Actors, and return a printe
 >                               newDone = map (head . fst) newList
 
 > allAdj :: Actor -> [Detail] -> [Adj]
-> allAdj a d = fellowAdj (baseAdj a) d []
+> allAdj a d = baa ++ fellowAdj baa d []
+>              where baa = baseAdj a
 
 > adjLim :: Actor -> [Detail] -> [Adj]
 > adjLim a d = takeWhile ((<= limit) . snd) (allAdj a d)
@@ -194,6 +195,6 @@ Finally, using everything above here, we can get two Actors, and return a printe
 > alTest a = allShowDetails >>= (\d -> (return . length) $ adjLim a d)
 > actLength = allShowDetails >>= (\d -> (return . length) (allActors d))
 
--> test a = allShowDetails >>= (\d -> (return) $ adjLim a d)
+> test a = allShowDetails >>= (\d -> (return . length) $ adjLim a d)
 
-> test = allShowDetails >>= (\d -> (putStrLn . flatten . map (ppAdj . (\(a1,a2) -> adjCheck a1 a2 d))) (allCombos d))
+-> test = allShowDetails >>= (\d -> (putStrLn . flatten . map (ppAdj . (\(a1,a2) -> adjCheck a1 a2 d))) (allCombos d))
