@@ -34,11 +34,15 @@ A few test variables now:
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 > limit :: Int
-> limit = 10
+> limit = 1000
 > showsPath :: String
 > showsPath = "../history-project/_shows/"
 > me :: Actor
 > me = "Jack Ellis"
+> fr :: Actor
+> fr = "Fran Roper"
+> br :: Actor
+> br = "????na Brown"
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Helpers!
@@ -133,7 +137,7 @@ Finally, using everything above here, we can get two Actors, and return a printe
 
 > fellowAdj :: [Adj] -> [Detail] -> [Actor] -> [Adj]
 > fellowAdj [] _ _    = []
-> fellowAdj as d done = newList ++ fellowAdj newList d newDone
+> fellowAdj as d done = newList ++ fellowAdj newList d (done ++ newDone)
 >                         where newList = fellowAdj' as d done
 >                               newDone = map (head . fst) newList
 
@@ -187,7 +191,8 @@ Finally, using everything above here, we can get two Actors, and return a printe
 
 > allCombos d = [(a1,a2) | a1 <- allActors d, a2 <- allActors d, a1 /= a2]
 
-> alTest a = allShowDetails >>= (\d -> return $ adjLim a d)
+> alTest a = allShowDetails >>= (\d -> (return . length) $ adjLim a d)
+> actLength = allShowDetails >>= (\d -> (return . length) (allActors d))
 
 -> test a = allShowDetails >>= (\d -> (return) $ adjLim a d)
 
