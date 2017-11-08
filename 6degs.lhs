@@ -35,7 +35,7 @@ A few test variables now:
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 > limit :: Int
-> limit = 50
+> limit = 10
 > showsPath :: String
 > showsPath = "../history-project/_shows/"
 
@@ -159,27 +159,27 @@ Finally, using everything above here, we can get two Actors, and return a printe
 > fellowAdj as dt = (flatten . map (fellowGen as dt)) as
 
 > fellowGen :: [Adj] -> [Detail] -> Adj -> [Adj]
-> fellowGen as dt (ad, i) = [(a:ad, i+1) | a <- allFellows (head ad) dt, not (elem a ad || elem a ((flatten . map fst) as))]
+> fellowGen as dt (ad, i) = if i > limit then [] else [(a:ad, i+1) | a <- allFellows (head ad) dt, not (elem a ad || elem a ((flatten . map fst) as))]
 
-> adjFind' :: (Actor, Actor) -> [Adj] -> [Adj] -> [Detail] -> Adj
-> adjFind' (t,b) [] _ _   = ([t,b], 1000)
-> adjFind' (t,b) (a:as) as2 dt
->   | snd a > limit       = ([t,b], 1000)
+> adjFind :: (Actor, Actor) -> [Adj] -> [Adj] -> [Detail] -> Adj
+> adjFind (t,b) [] _ _    = ([t,b], 1000)
+> adjFind (t,b) (a:as) as2 dt
+>-- | snd a > limit       = ([t,b], 1000)
 >   | (head . fst) a == t = a
->   | null as             = adjFind' (t,b) (fellowAdj (a:as2) dt) [] dt
->   | otherwise           = adjFind' (t,b) as (a:as2) dt
+>   | null as             = adjFind (t,b) (fellowAdj (a:as2) dt) [] dt
+>   | otherwise           = adjFind (t,b) as (a:as2) dt
 
-> adjFind :: Actor -> Actor -> [Detail] -> Adj
-> adjFind t a dt = adjFind' (t,a) (baseAdj a) [] dt
 
 > adjChecker :: Actor -> Actor -> [Detail] -> Adj
 > adjChecker a1 a2 dt
 >   | not (elem a1 aa || elem a2 aa)  = ([a1,a2], -3)
 >   | not (elem a2 aa)                = ([a1,a2], -2)
 >   | not (elem a1 aa)                = ([a1,a2], -1)
->   | a1 == a2                        = ([a1,a2],  0)
->   | otherwise                       = adjFind a1 a2 dt
+>   | a1 == a2                        = ([a1],  0)
+>   | otherwise                       = adjFind (a1, a2) (baseAdj a2) [] dt
 >   where aa = allActors dt
+
+> ajIO = allShowDetails >>= (\d -> return $ map (\(a,b) -> adjChecker a b d) (allCombos d))
 
 > main' :: Actor -> Actor -> IO ()
 > main' a1 a2 = allShowDetails >>= (\d -> putStrLn $ printLinks (adjChecker a1 a2 d) d)
@@ -193,19 +193,25 @@ Finally, using everything above here, we can get two Actors, and return a printe
 >               return $ (sortBy (comparing snd) . filter ((<1000) . snd) . map (\(a,b) -> adjChecker a b d)) [(me, a) | a <- (rmdups . flatten . map snd) d, a /= me]
 >               where me = "Jack Ellis"
 
-> allCombos = do d <- allShowDetails
->                let aa = allActors d
->                return [adjChecker a1 a2 d | a1 <- aa, a2 <- aa, a1 /= a2]
+> allCombos d = [(a1, a2) | a1 <- aa, a2 <- aa, a1 /= a2]
+>               where aa = allActors d
 
-> test' [] d = []
-> test' a d = newList ++ test' newList d
+> test' [] d = fellowAdj [] d
+> test' a d = newList ++ newList2 ++ newList3 ++ newList4
 >             where newList = fellowAdj a d
+>                   newList2 = fellowAdj newList d
+>                   newList3 = fellowAdj newList2 d
+>                   newList4 = fellowAdj newList3 d
 
-> test :: Actor -> IO [Adj]
-> test a = allShowDetails >>= (\d -> return $ test' (baseAdj a) d)
+>-- test :: Actor -> IO [Adj]
+> test a = allShowDetails >>= (\d -> (putStrLn . flatten . map ppAdj) $ test' (baseAdj a) d)
 > btest = test br
 > mtest = main' br me
+
+> ppAdj :: Adj -> String
+> ppAdj (as, i) = "([" ++ ((flatten . intersperse ", ") as) ++ "], " ++ [intToDigit i] ++ ")\n"
 
 
 > br = "????na Brown"
 > me = "Jack Ellis"
+> fr = "Fran Roper"
