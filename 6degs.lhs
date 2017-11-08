@@ -13,7 +13,6 @@ We're first going to import some things:
 > import Data.Char
 > import qualified Data.Text as T
 > import qualified Data.Text.IO as TIO
-> import System.IO.Unsafe
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Now defining some data types:
@@ -114,35 +113,6 @@ We discount anything that's not a MarkDown file, is a Freshers' Fringe (otherwis
 >                     return $ filter (\s -> length (snd s) > 1) allDT
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-We're going to be making a list of linked actors, so what we now need is a way of going through that list and finding what show links them.
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-First, we find the link between just two actors, and return it
-
-> findLink :: Actor -> Actor -> [Detail] -> ShowName
-> findLink a1 a2 dt = (fst . head . filter ((\s -> elem a1 s && elem a2 s) . snd)) dt
-
-Then, we take a list of actors and find the links between all of them, returning it as a nicely printed list
-
-> links :: [Actor] -> [Detail] -> String
-> links (a1:a2:as) dt = if as == [] then str else str ++ links (a2:as) dt
->                          where str = "- " ++ a1 ++ " was in " ++ findLink a1 a2 dt ++ " with " ++ a2 ++ "\n"
-
-Finally, we take an Adj, and from the list of Actors contained in it, and the Int, we can return a nicely printed list detailing the two Actors
-at each end's link.
-
-> printLinks :: Adj -> [Detail] -> String
-> printLinks (as, i) dt
->   | i == -3   = headAndLast ++ " are not Actors with records."
->   | i == -2   = last as ++ " is not an Actor with a record."
->   | i == -1   = head as ++ " is not an Actor with a record."
->   | i == 0    = "A person has 0 degrees of separation with themself by definition."
->   | i == 1    = headAndLast ++ " were in " ++ findLink (head as) (last as) dt ++ " together\n\nThey have 1 degree of separation."
->   | i == 1000 = headAndLast ++ " are not linked."
->   | otherwise = headAndLast ++ " are linked as follows:\n" ++ links as dt ++ "\nThey have " ++ [intToDigit i] ++ " degrees of separation."
->   where headAndLast = head as ++ " and " ++ last as
-
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -161,57 +131,68 @@ Finally, using everything above here, we can get two Actors, and return a printe
 > fellowGen :: [Adj] -> [Detail] -> Adj -> [Adj]
 > fellowGen as dt (ad, i) = if i > limit then [] else [(a:ad, i+1) | a <- allFellows (head ad) dt, not (elem a ad || elem a ((flatten . map fst) as))]
 
-> adjFind :: (Actor, Actor) -> [Adj] -> [Adj] -> [Detail] -> Adj
-> adjFind (t,b) [] _ _    = ([t,b], 1000)
-> adjFind (t,b) (a:as) as2 dt
->-- | snd a > limit       = ([t,b], 1000)
->   | (head . fst) a == t = a
->   | null as             = adjFind (t,b) (fellowAdj (a:as2) dt) [] dt
->   | otherwise           = adjFind (t,b) as (a:as2) dt
+> allAdj' :: [Adj] -> [Detail] -> [Adj]
+> allAdj' [] d = []
+> allAdj' a d = newList ++ allAdj' newList d
+>             where newList = fellowAdj a d
 
+> allAdj :: Actor -> [Detail] -> [Adj]
+> allAdj a d = allAdj' (baseAdj a) d
 
-> adjChecker :: Actor -> Actor -> [Detail] -> Adj
-> adjChecker a1 a2 dt
+> adjLim :: Actor -> [Detail] -> [Adj]
+> adjLim a d = takeWhile ((< limit) . snd) (allAdj a d)
+
+> adjSearch :: Actor -> Actor -> [Detail] -> Adj
+> adjSearch a1 a2 d = if null alList then ([a1,a2], 1000) else head alList
+>                     where alList = (filter ((== a2) . head . fst)) (adjLim a1 d)
+
+> adjCheck :: Actor -> Actor -> [Detail] -> Adj
+> adjCheck a1 a2 d
 >   | not (elem a1 aa || elem a2 aa)  = ([a1,a2], -3)
 >   | not (elem a2 aa)                = ([a1,a2], -2)
 >   | not (elem a1 aa)                = ([a1,a2], -1)
->   | a1 == a2                        = ([a1],  0)
->   | otherwise                       = adjFind (a1, a2) (baseAdj a2) [] dt
->   where aa = allActors dt
+>   | a1 == a2                        = ([a1],     0)
+>   | otherwise                       = adjSearch a2 a1 d
+>   where aa = allActors d
 
-> ajIO = allShowDetails >>= (\d -> return $ map (\(a,b) -> adjChecker a b d) (allCombos d))
+> links :: [Actor] -> [Detail] -> String
+> links (a1:a2:as) dt = if as == [] then str else str ++ links (a2:as) dt
+>                          where str = "- " ++ a1 ++ " was in " ++ findLink a1 a2 ++ " with " ++ a2 ++ "\n"
+>                                findLink a1 a2 = (fst . head . filter ((\s -> elem a1 s && elem a2 s) . snd)) dt
+
+> ppAdjCheck :: Actor -> Actor -> [Detail] -> String
+> ppAdjCheck a1 a2 d
+>   | i == -3   = headAndLast ++ " are not Actors with records."
+>   | i == -2   = last as ++ " is not an Actor with a record."
+>   | i == -1   = head as ++ " is not an Actor with a record."
+>   | i == 0    = head as ++ " has 0 degrees of separation with themself by definition."
+>   | i == 1000 = headAndLast ++ " are not linked, or there are more than " ++ [intToDigit limit] ++ "degrees of separation"
+>   | otherwise = headAndLast ++ " are linked as follows:\n" ++ links as d ++ "\nThey have " ++ [intToDigit i] ++ " degrees of separation."
+>   where (as, i) = adjCheck a1 a2 d
+>         headAndLast = head as ++ " and " ++ last as
 
 > main' :: Actor -> Actor -> IO ()
-> main' a1 a2 = allShowDetails >>= (\d -> putStrLn $ printLinks (adjChecker a1 a2 d) d)
+> main' a1 a2 = allShowDetails >>= (\d -> putStrLn $ ppAdjCheck a1 a2 d)
 
 > main :: IO ()
 > main = do a1 <- getLine
 >           a2 <- getLine
 >           main' a1 a2
 
-> allAndMe = do d <- allShowDetails
->               return $ (sortBy (comparing snd) . filter ((<1000) . snd) . map (\(a,b) -> adjChecker a b d)) [(me, a) | a <- (rmdups . flatten . map snd) d, a /= me]
->               where me = "Jack Ellis"
-
-> allCombos d = [(a1, a2) | a1 <- aa, a2 <- aa, a1 /= a2]
->               where aa = allActors d
-
-> test' [] d = fellowAdj [] d
-> test' a d = newList ++ newList2 ++ newList3 ++ newList4
->             where newList = fellowAdj a d
->                   newList2 = fellowAdj newList d
->                   newList3 = fellowAdj newList2 d
->                   newList4 = fellowAdj newList3 d
-
->-- test :: Actor -> IO [Adj]
-> test a = allShowDetails >>= (\d -> (putStrLn . flatten . map ppAdj) $ test' (baseAdj a) d)
-> btest = test br
-> mtest = main' br me
-
 > ppAdj :: Adj -> String
 > ppAdj (as, i) = "([" ++ ((flatten . intersperse ", ") as) ++ "], " ++ [intToDigit i] ++ ")\n"
 
+> adjTest a = allShowDetails >>= (\d -> (return . length) $ adjLim a d)
+
+-> adjTest a = allShowDetails >>= (\d -> (return) $ adjLim a d)
 
 > br = "????na Brown"
 > me = "Jack Ellis"
 > fr = "Fran Roper"
+
+-> allAndMe = do d <- allShowDetails
+->               (putStrLn . flatten . map (ppAdj . (\(a,b) -> adjChecker a b d))) (allCombos d)
+
+-> allCombos d = [(a1, a2) | a1 <- aa, a2 <- aa, a1 /= a2]
+->               where aa = allActors d
+
