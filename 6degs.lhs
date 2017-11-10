@@ -7,6 +7,7 @@ We're first going to import some things:
 
 > import Data.List
 > import System.Directory
+> import Data.Ord
 > import qualified Data.Text as T
 > import qualified Data.Text.IO as TIO
 
@@ -34,6 +35,7 @@ A few test variables now:
 > limit = 1000
 > showsPath :: String
 > showsPath = "../history-project/_shows/"
+
 > me :: Actor
 > me = "Jack Ellis"
 > fr :: Actor
@@ -48,23 +50,26 @@ Helpers!
 > flatten :: [[a]] -> [a]
 > flatten ass = [a | as <- ass, a <- as]
 
-> rmdups :: (Eq a, Ord a) => [a] -> [a]
-> rmdups = map head . group . sort
+> rmDups :: (Eq a, Ord a) => [a] -> [a]
+> rmDups = map head . group . sort
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 First we need to build a list of all of the shows that have records on the history site
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Surprisingly enough, this isn't that many lines. First we get all of the contents of the directory where the shows are kept
-Then we drop the first 2 (`.` and `..`), and to that list we map the prepending of the showsPath and the appending of a `/` because filepaths
-We also map a little functions that extracts the contents of a directory (in this case the files themselves), and prepends the containing folder
-And that is the filepath for all of the shows that have records at the NNT
+Surprisingly enough, this isn't that many lines.
+First we get all of the contents of the directory where the shows are kept.
+Then we drop the first 2 (`.` and `..`), and to that list we map the prepending of the showsPath and the appending of a `/` because filepaths.
+We also map a little functions that extracts the contents of a directory (in this case the files themselves), and prepends the containing folder.
+And that is the filepath for all of the shows that have records at the NNT.
 
-> allShows :: IO [IO [FilePath]]
+> allShows :: IO [FilePath]
 > allShows = do baseDir <- getDirectoryContents showsPath
->               return $ map (getDirContentsPrep . (\s -> showsPath ++ s ++ "/")) (drop 2 baseDir)
+>               showsInDirs <- (sequence . map (getDirContentsPrep . (\s -> showsPath ++ s ++ "/"))) (drop 2 baseDir)
+>               (return . flatten) showsInDirs
 >               where getDirContentsPrep s = do contents <- getDirectoryContents s
 >                                               return $ map (s++) (drop 2 contents)
+
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Now that we've got a list of all of the shows, we need to extract from it a list of all actors.
@@ -106,14 +111,9 @@ Applying these, we can extract the details from a specific file
 >                    let fileLines = lines fileContents
 >                    return (getTitle fileLines, getNames fileLines)
 
-And finally, we can map this across all of the shows (i.e. that list we generated with `allShows`)
-We discount anything that's not a MarkDown file, is a Freshers' Fringe (otherwise this gets very dull), and any show with fewer than 2 actors
-
 > allDetails :: IO [Detail]
-> allDetails = do allDirs' <- allShows
->                 allDirs <- sequence allDirs'
->                 allDT <- (sequence . map showDetails) [s | s <- flatten allDirs, isInfixOf ".md" s, (not . isInfixOf "freshers_fringe") s]
->                 (return . filter ((/= []) . snd)) allDT
+> allDetails = allShows >>= (\shows -> (sequence . map showDetails) [s | s <- shows, isInfixOf ".md" s, not (isInfixOf "freshers_fringe" s)])
+
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
@@ -126,8 +126,11 @@ First, a brief function to turn an Actor into the most basic possible Adj WRT th
 
 Then a helper, a function to generate a list of every Actor one specific Actor has ever worked with
 
+> allActors :: [Detail] -> [Actor]
+> allActors d = (rmDups . flatten . map snd) d
+
 > allFellows :: Actor -> [Detail] -> [Actor]
-> allFellows a dt = (filter (/=a) . rmdups . flatten . filter (elem a) . map snd) dt
+> allFellows a dt = (filter (/=a) . rmDups . flatten . filter (elem a) . map snd) dt
 
 fellowAdj' takes a list of Adjs, and a list of explored Actors, and goes through each Adj generating a list of new Adjs based on the head of the Actor list of each one.
 
@@ -170,7 +173,7 @@ adjCheck is basically input validation; it makes sure both Actors actually have 
 >   | not (elem a2 aa)                = ([a1,a2], -2)
 >   | not (elem a1 aa)                = ([a1,a2], -1)
 >   | otherwise                       = adjSearch a1 a2 d
->   where aa = (rmdups . flatten . map snd) d     -- Generates a list of all actors
+>   where aa = allActors d     -- Generates a list of all actors
 
 links is a helper function that takes a list of Actors and a list of Details and uses those to find the Shows that link each pair of Actors.
 
@@ -192,10 +195,10 @@ Finally for the non-IO portion of this bit, ppAdjCheck takes the Actor names and
 >   where (as, i) = adjCheck a1 a2 d
 >         headAndLast = head as ++ " and " ++ last as
 
-main' is where the IO starts; it feeds allDetails into ppAdjCheck and putStrLn's the resultant String so we get nice '\n' newlines
+main' is where the IO starts; it feeds showDetails into ppAdjCheck and putStrLn's the resultant String so we get nice '\n' newlines
 
 > main' :: Actor -> Actor -> IO ()
-> main' a1 a2 = allDetails >>= (\d -> putStrLn $ ppAdjCheck a1 a2 d)
+> main' a1 a2 = allDetails >>= (\d -> putStr $ ppAdjCheck a1 a2 d)
 
 main takes two getLines and returns main' with them as input 
 
@@ -204,13 +207,25 @@ main takes two getLines and returns main' with them as input
 >           a2 <- getLine
 >           main' a1 a2
 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 > allCombos' []     = []
 > allCombos' (a:as) = [(a, b) | b <- as] ++ allCombos' as
-> allCombos d = allCombos' ((rmdups . flatten . map snd) d)
+> allCombos d = (allCombos' .  allActors) d
 
-> allCombosIO = allDetails >>= (\d -> (putStrLn . ppAdj . map (\(a,b) -> adjCheck a b d)) $ allCombos d)
+> allCombosIO = allDetails >>= (\d -> (putStrLn . ppAdj . reverse . sortBy (comparing snd) . map (\(a,b) -> adjCheck a b d)) $ allCombos d)
+
+> showCount = allDetails >>= (\d -> (return . length) d)
 
 > ppAdj' :: Adj -> String
 > ppAdj' (a, i) = "([" ++ flatten (intersperse ", " a) ++ "], " ++ show i ++ ")\n"
+
 > ppAdj :: [Adj] -> String
 > ppAdj as = (flatten . map ppAdj') as
+
+> alltitles = allDetails >>= (\d -> (return . length . filter (=="Freshers' Fringe") . map fst) d)
+
+> allShowLength :: IO Int
+> allShowLength = allShows >>= (\s -> (return . length) s)
