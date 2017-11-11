@@ -112,7 +112,8 @@ Applying these, we can extract the details from a specific file
 >                    return (getTitle fileLines, getNames fileLines)
 
 > allDetails :: IO [Detail]
-> allDetails = allShows >>= (\shows -> (sequence . map showDetails) [s | s <- shows, isInfixOf ".md" s, (not . isInfixOf "freshers_fringe") s])
+>-- allDetails = allShows >>= (\shows -> (sequence . map showDetails) [s | s <- shows, isInfixOf ".md" s, (not . isInfixOf "freshers_fringe") s])
+> allDetails = allShows >>= (\shows -> (sequence . map showDetails) [s | s <- shows, isInfixOf ".md" s])
 
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -152,7 +153,7 @@ And allAdj takes fellowAdj and wraps it all up neatly so all you've to do is sup
 > allAdj a d = baa ++ fellowAdj baa d []
 >              where baa = baseAdj a
 
-allAdj is in theory an infinite list, so we use adjLim to limit it to 'limit' degrees.
+allAdj is in theory an infinite list, so we use adjLim to limit it. Shock horror.
 At the moment this is purely academic, as the number of Actors with records is less than the current value for 'limit'.
 
 > adjLim :: Actor -> [Detail] -> Int -> [Adj]
@@ -165,7 +166,7 @@ If it does hit, it returns that Adj.
 > adjSearch a1 a2 d = if null alList then ([a1,a2], 1000) else head alList
 >                     where alList = (filter ((== a1) . head . fst)) (adjLim a2 d limit)
 
-adjCheck is basically input validation; it makes sure both Actors actually have records. If they don't it returns an error code in the result, otherwise it runs adjSearch
+adjCheck is basically input validation; it makes sure both Actors actually have records. If they don't it returns an error code in the result, otherwise it runs adjSearch.
 
 > adjCheck :: Actor -> Actor -> [Detail] -> Adj
 > adjCheck a1 a2 d
@@ -173,9 +174,9 @@ adjCheck is basically input validation; it makes sure both Actors actually have 
 >   | not (elem a2 aa)                = ([a1,a2], -2)
 >   | not (elem a1 aa)                = ([a1,a2], -1)
 >   | otherwise                       = adjSearch a1 a2 d
->   where aa = allActors d     -- Generates a list of all actors
+>   where aa = allActors d
 
-links is a helper function that takes a list of Actors and a list of Details and uses those to find the Shows that link each pair of Actors.
+`links` is a helper function that takes a list of Actors and a list of Details and uses those to find the Shows that link each pair of Actors.
 
 > links :: [Actor] -> [Detail] -> String
 > links (a1:a2:as) dt = if as == [] then str else str ++ links (a2:as) dt
@@ -202,10 +203,10 @@ main' is where the IO starts; it feeds showDetails into ppAdjCheck and putStrLn'
 
 main takes two getLines and returns main' with them as input 
 
--> main :: IO ()
--> main = do a1 <- getLine
-->           a2 <- getLine
-->           main' a1 a2
+> main :: IO ()
+> main = do a1 <- getLine
+>           a2 <- getLine
+>           main' a1 a2
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
@@ -217,7 +218,7 @@ EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
 
 > allCombosIO = allDetails >>= (\d -> (return . length) $ allCombos d)
 
-> main = allDetails >>= (\d -> (putStrLn . ppAdj . map (\(a1,a2) -> adjCheck a1 a2 d)) (allCombos d))
+-> main = allDetails >>= (\d -> (putStrLn . ppAdj . map (\(a1,a2) -> adjCheck a1 a2 d)) (allCombos d))
 
 > showCount = allDetails >>= (\d -> (return . length) d)
 
@@ -233,8 +234,6 @@ EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
 
 > ppAdj :: [Adj] -> String
 > ppAdj = flatten . map ppAdj'
-
-> alltitles = allDetails >>= (\d -> (return . length . filter (=="Freshers' Fringe") . map fst) d)
 
 > allShowLength :: IO Int
 > allShowLength = allShows >>= (\s -> (return . length) s)
