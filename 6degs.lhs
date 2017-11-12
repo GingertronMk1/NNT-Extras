@@ -179,19 +179,20 @@ adjCheck is basically input validation; it makes sure both Actors actually have 
 `links` is a helper function that takes a list of Actors and a list of Details and uses those to find the Shows that link each pair of Actors.
 
 > links :: [Actor] -> [Detail] -> String
-> links (a1:a2:as) dt = if as == [] then str else str ++ links (a2:as) dt
->                          where str = "- " ++ a1 ++ " was in " ++ findLink a1 a2 ++ " with " ++ a2 ++ "\n"
->                                findLink a1 a2 = (fst . head . filter ((\s -> elem a1 s && elem a2 s) . snd)) dt
+> links (a1:a2:as) d = case as of []        -> str
+>                                 otherwise -> str ++ links (a2:as) d
+>                      where str = "- " ++ a1 ++ " was in " ++ (fst . head . filter ((\s -> elem a1 s && elem a2 s) . snd)) d ++ " with " ++ a2 ++ "\n"
+
 
 Finally for the non-IO portion of this bit, ppAdjCheck takes the Actor names and the Detail list, performs adjCheck on them, and returns the appropriate String
 
 > ppAdjCheck :: Actor -> Actor -> [Detail] -> String
 > ppAdjCheck a1 a2 d
->   | i == -3   = headAndLast ++ " are not Actors with records."
->   | i == -2   = last as ++ " is not an Actor with a record."
->   | i == -1   = head as ++ " is not an Actor with a record."
->   | i == 0    = head as ++ " has 0 degrees of separation with themself by definition."
->   | i == 1000 = headAndLast ++ " are either not linked, or have more than " ++ show limit ++ " degrees of separation."
+>   | i == -3   = headAndLast ++ " are not Actors with records.\n"
+>   | i == -2   = last as ++ " is not an Actor with a record.\n"
+>   | i == -1   = head as ++ " is not an Actor with a record.\n"
+>   | i == 0    = head as ++ " has 0 degrees of separation with themself by definition.\n"
+>   | i == 1000 = headAndLast ++ " are either not linked, or have more than " ++ show limit ++ " degrees of separation.\n"
 >   | otherwise = headAndLast ++ " have " ++ show i ++ " degrees of separation, and are linked as follows:\n" ++ links as d
 >   where (as, i) = adjCheck a1 a2 d
 >         headAndLast = head as ++ " and " ++ last as
@@ -218,22 +219,23 @@ EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
 
 > allCombosIO = allDetails >>= (\d -> (return . length) $ allCombos d)
 
--> main = allDetails >>= (\d -> (putStrLn . ppAdj . map (\(a1,a2) -> adjCheck a1 a2 d)) (allCombos d))
+-> main = allDetails >>= (\d -> (writeFile "Adjs.txt" . ppAdj . map (\(a1,a2) -> adjCheck a1 a2 d)) (allCombos d))
 
 > showCount = allDetails >>= (\d -> (return . length) d)
 
 > adjPrint' :: Adj -> String
 > adjPrint' (as, i) = "\"" ++ head as ++ "\",\"" ++ last as ++ "\"\n"
+> adjPrint :: [Adj] -> String
 > adjPrint as = (flatten . map adjPrint') as
+> ppAdj' :: Adj -> String
+> ppAdj' (a, i) = "([" ++ flatten (intersperse ", " a) ++ "], " ++ show i ++ ")\n"
+> ppAdj :: [Adj] -> String
+> ppAdj = flatten . map ppAdj'
 
 > allAdjs :: IO ()
 > allAdjs = allDetails >>= (\d -> (writeFile "Adjs.txt" . adjPrint . filter ((>0) . snd) . flatten . map (\a -> adjLim a d 1)) (allActors d))
 
-> ppAdj' :: Adj -> String
-> ppAdj' (a, i) = "([" ++ flatten (intersperse ", " a) ++ "], " ++ show i ++ ")\n"
-
-> ppAdj :: [Adj] -> String
-> ppAdj = flatten . map ppAdj'
-
 > allShowLength :: IO Int
 > allShowLength = allShows >>= (\s -> (return . length) s)
+
+> allActorsIO = allDetails >>= (\d -> (return . length . allActors) d)
