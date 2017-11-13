@@ -63,8 +63,8 @@ Then we drop the first 2 (`.` and `..`), and to that list we map the prepending 
 We also map a little functions that extracts the contents of a directory (in this case the files themselves), and prepends the containing folder.
 And that is the filepath for all of the shows that have records at the NNT.
 
-> allShows :: IO [FilePath]
-> allShows = do baseDir <- getDirectoryContents showsPath
+> allFiles :: IO [FilePath]
+> allFiles = do baseDir <- getDirectoryContents showsPath
 >               showsInDirs <- (sequence . map (getDirContentsPrep . (\s -> showsPath ++ s ++ "/"))) (drop 2 baseDir)
 >               (return . flatten) showsInDirs
 >               where getDirContentsPrep s = do contents <- getDirectoryContents s
@@ -112,8 +112,8 @@ Applying these, we can extract the details from a specific file
 >                    return (getTitle fileLines, getNames fileLines)
 
 > allDetails :: IO [Detail]
->-- allDetails = allShows >>= (\shows -> (sequence . map showDetails) [s | s <- shows, isInfixOf ".md" s, (not . isInfixOf "freshers_fringe") s])
-> allDetails = allShows >>= (\shows -> (sequence . map showDetails) [s | s <- shows, isInfixOf ".md" s])
+>-- allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f | f <- files, isInfixOf ".md" f, (not . isInfixOf "freshers_fringe") f]) -- uncomment this line to exclude Freshers' Fringe
+> allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f| f <- files, isInfixOf ".md" f])  -- uncomment this line to include Freshers' Fringe
 
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -180,19 +180,19 @@ adjCheck is basically input validation; it makes sure both Actors actually have 
 
 > links :: [Actor] -> [Detail] -> String
 > links (a1:a2:as) d = case as of []        -> str
->                                 otherwise -> str ++ links (a2:as) d
->                      where str = "- " ++ a1 ++ " was in " ++ (fst . head . filter ((\s -> elem a1 s && elem a2 s) . snd)) d ++ " with " ++ a2 ++ "\n"
+>                                 otherwise -> str ++ "\n" ++ links (a2:as) d
+>                      where str = "- " ++ a1 ++ " was in " ++ (fst . head . filter ((\s -> elem a1 s && elem a2 s) . snd)) d ++ " with " ++ a2
 
 
 Finally for the non-IO portion of this bit, ppAdjCheck takes the Actor names and the Detail list, performs adjCheck on them, and returns the appropriate String
 
 > ppAdjCheck :: Actor -> Actor -> [Detail] -> String
 > ppAdjCheck a1 a2 d
->   | i == -3   = headAndLast ++ " are not Actors with records.\n"
->   | i == -2   = last as ++ " is not an Actor with a record.\n"
->   | i == -1   = head as ++ " is not an Actor with a record.\n"
->   | i == 0    = head as ++ " has 0 degrees of separation with themself by definition.\n"
->   | i == 1000 = headAndLast ++ " are either not linked, or have more than " ++ show limit ++ " degrees of separation.\n"
+>   | i == -3   = headAndLast ++ " are not Actors with records."
+>   | i == -2   = last as ++ " is not an Actor with a record."
+>   | i == -1   = head as ++ " is not an Actor with a record."
+>   | i == 0    = head as ++ " has 0 degrees of separation with themself by definition."
+>   | i == 1000 = headAndLast ++ " are either not linked, or have more than " ++ show limit ++ " degrees of separation."
 >   | otherwise = headAndLast ++ " have " ++ show i ++ " degrees of separation, and are linked as follows:\n" ++ links as d
 >   where (as, i) = adjCheck a1 a2 d
 >         headAndLast = head as ++ " and " ++ last as
@@ -200,7 +200,7 @@ Finally for the non-IO portion of this bit, ppAdjCheck takes the Actor names and
 main' is where the IO starts; it feeds showDetails into ppAdjCheck and putStrLn's the resultant String so we get nice '\n' newlines
 
 > main' :: Actor -> Actor -> IO ()
-> main' a1 a2 = allDetails >>= (\d -> putStr $ ppAdjCheck a1 a2 d)
+> main' a1 a2 = allDetails >>= (\d -> putStrLn $ ppAdjCheck a1 a2 d)
 
 main takes two getLines and returns main' with them as input 
 
@@ -236,6 +236,6 @@ EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
 > allAdjs = allDetails >>= (\d -> (writeFile "Adjs.txt" . adjPrint . filter ((>0) . snd) . flatten . map (\a -> adjLim a d 1)) (allActors d))
 
 > allShowLength :: IO Int
-> allShowLength = allShows >>= (\s -> (return . length) s)
+> allShowLength = allFiles >>= (\s -> (return . length) s)
 
 > allActorsIO = allDetails >>= (\d -> (return . length . allActors) d)
