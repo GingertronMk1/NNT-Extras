@@ -35,20 +35,25 @@ A few test variables now:
 > limit = 1000
 > showsPath :: String
 > showsPath = "../history-project/_shows/"
-
 > me :: Actor
 > me = "Jack Ellis"
 > fr :: Actor
 > fr = "Fran Roper"
 > br :: Actor
 > br = "????na Brown"
+> testAdj1 = ([me, fr, "Ian Sheard"], 2)
+> testAdj2 = (["Ian Sheard", "Sam Peake"], 1)
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Helpers!
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+Flattening lists of lists
+
 > flatten :: [[a]] -> [a]
 > flatten ass = [a | as <- ass, a <- as]
+
+Removing duplicate entries in a sortable list
 
 > rmDups :: (Eq a, Ord a) => [a] -> [a]
 > rmDups = map head . group . sort
@@ -57,31 +62,31 @@ Helpers!
 First we need to build a list of all of the shows that have records on the history site
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Surprisingly enough, this isn't that many lines.
 First we get all of the contents of the directory where the shows are kept.
-Then we drop the first 2 (`.` and `..`), and to that list we map the prepending of the showsPath and the appending of a `/` because filepaths.
+Then we drop anything that starts with a '.', and to that list we map the prepending of the showsPath and the appending of a `/` because filepaths.
 We also map a little functions that extracts the contents of a directory (in this case the files themselves), and prepends the containing folder.
 And that is the filepath for all of the shows that have records at the NNT.
 
 > allFiles :: IO [FilePath]
 > allFiles = do baseDir <- getDirectoryContents showsPath
->               showsInDirs <- (sequence . map (getDirContentsPrep . (\s -> showsPath ++ s ++ "/"))) (drop 2 baseDir)
+>               showsInDirs <- (sequence . map (getDirContentsWPrep . (\s -> showsPath ++ s ++ "/"))) (dropDots baseDir)
 >               (return . flatten) showsInDirs
->               where getDirContentsPrep s = do contents <- getDirectoryContents s
->                                               (return . map (s++)) (drop 2 contents)
-
+>               where getDirContentsWPrep s = getDirectoryContents s >>= (\c -> (return . map (s++)) (dropDots c))
+>                     dropDots = filter (not . isPrefixOf ".")
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Now that we've got a list of all of the shows, we need to extract from it a list of all actors.
 First we're going to extract just the actors from a single show, as such:
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+Filtering people; taking just the chunk of text that relates to the actors in the plays.
+
 > filterPeople :: [String] -> [String]
 > filterPeople = filter (isInfixOf " name:") . dropWhile (not . isInfixOf "cast:") . takeWhile (not . isInfixOf "crew:")
 
-Next, a helper to remove anything that isn't someone's name in the line
-That is, trailing/leading non-letter characters
-Basically my problem is that people's names are formatted incredibly inconsistently on the History Site
+Next, a helper to remove anything that isn't someone's name in the line.
+That is, leading/trailing non-letter characters.
+Basically my problem is that people's names are formatted incredibly inconsistently on the History Site.
 
 > stripShit :: String -> String
 > stripShit s
@@ -91,30 +96,36 @@ Basically my problem is that people's names are formatted incredibly inconsisten
 >  where hs = head s
 >        ls = last s
 
+We can use this in conjunction with dropping until it hits a ':' to extract just the string we're after
+
 > getString :: String -> String
 > getString = stripShit . dropWhile (/= ':')
 
-With that, we can extract just the name from the string
-
-> getNames :: [String] -> [Actor]
-> getNames = map getString . filterPeople
-
-Also we can use them to get the title as well, which is nice
+Using these, we can extract a show's title from the lines of the file that contains its details
 
 > getTitle :: [String] -> ShowName
 > getTitle = getString . head . filter (isInfixOf "title:")
 
+We can also extract the names of all of the actors in the show
+
+> getNames :: [String] -> [Actor]
+> getNames = map getString . filterPeople
+
+We can then combine these to take the lines of the containing file and return the Detail of it
+
+> titleAndNames :: [String] -> Detail
+> titleAndNames l = (getTitle l, getNames l)
+
 Applying these, we can extract the details from a specific file
 
 > showDetails :: FilePath -> IO Detail
-> showDetails s = do fileContents <- (fmap T.unpack . TIO.readFile) s
->                    let fileLines = lines fileContents
->                    return (getTitle fileLines, getNames fileLines)
+> showDetails s = ((fmap T.unpack . TIO.readFile) s) >>= (return . titleAndNames . lines)
+
+Applying /that/, we can map it to the list of all files we generated earlier
 
 > allDetails :: IO [Detail]
->-- allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f | f <- files, isInfixOf ".md" f, (not . isInfixOf "freshers_fringe") f]) -- uncomment this line to exclude Freshers' Fringe
-> allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f| f <- files, isInfixOf ".md" f])  -- uncomment this line to include Freshers' Fringe
-
+> allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f | f <- files, isInfixOf ".md" f, not (isInfixOf "freshers_fringe" f), not (isInfixOf "charity_gala" f)]) -- uncomment this line to exclude Freshers' Fringes & Charity Gala
+>-- allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f| f <- files, isInfixOf ".md" f])  -- uncomment this line to include Freshers' Fringes & Charity Gala
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
@@ -181,8 +192,8 @@ adjCheck is basically input validation; it makes sure both Actors actually have 
 > links :: [Actor] -> [Detail] -> String
 > links (a1:a2:as) d = case as of []        -> str
 >                                 otherwise -> str ++ "\n" ++ links (a2:as) d
->                      where str = "- " ++ a1 ++ " was in " ++ (fst . head . filter ((\s -> elem a1 s && elem a2 s) . snd)) d ++ " with " ++ a2
-
+>                      where str = "- " ++ a1 ++ " was in " ++ link a1 a2 d ++ " with " ++ a2
+>                            link a1 a2 = fst . head . filter ((\s -> elem a1 s && elem a2 s) . snd)
 
 Finally for the non-IO portion of this bit, ppAdjCheck takes the Actor names and the Detail list, performs adjCheck on them, and returns the appropriate String
 
@@ -200,7 +211,7 @@ Finally for the non-IO portion of this bit, ppAdjCheck takes the Actor names and
 main' is where the IO starts; it feeds showDetails into ppAdjCheck and putStrLn's the resultant String so we get nice '\n' newlines
 
 > main' :: Actor -> Actor -> IO ()
-> main' a1 a2 = allDetails >>= (\d -> putStrLn $ ppAdjCheck a1 a2 d)
+> main' a1 a2 = allDetails >>= (putStrLn . ppAdjCheck a1 a2)
 
 main takes two getLines and returns main' with them as input 
 
@@ -213,15 +224,13 @@ main takes two getLines and returns main' with them as input
 EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-> allCombos' []     = []
-> allCombos' (a:as) = [(a, b) | b <- as] ++ allCombos' as
-> allCombos = allCombos' . allActors
+> allCombos'' []     = []
+> allCombos'' (a:as) = [(a, b) | b <- as] ++ allCombos'' as
+> allCombos' = allCombos'' . allActors
 
-> allCombosIO = allDetails >>= (\d -> (return . length) $ allCombos d)
+> allCombos = allDetails >>= (return . length . allCombos')
 
--> main = allDetails >>= (\d -> (writeFile "Adjs.txt" . ppAdj . map (\(a1,a2) -> adjCheck a1 a2 d)) (allCombos d))
-
-> showCount = allDetails >>= (\d -> (return . length) d)
+> allCombosDone = allDetails >>= (\d -> (writeFile "Adjs.txt" . ppAdj . map (\(a1,a2) -> adjCheck a1 a2 d)) (allCombos' d))
 
 > adjPrint' :: Adj -> String
 > adjPrint' (as, i) = "\"" ++ head as ++ "\",\"" ++ last as ++ "\"\n"
@@ -235,7 +244,11 @@ EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
 > allAdjs :: IO ()
 > allAdjs = allDetails >>= (\d -> (writeFile "Adjs.txt" . adjPrint . filter ((>0) . snd) . flatten . map (\a -> adjLim a d 1)) (allActors d))
 
-> allShowLength :: IO Int
-> allShowLength = allFiles >>= (\s -> (return . length) s)
+> showCount :: IO Int
+> showCount = allFiles >>= (return . length)
 
-> allActorsIO = allDetails >>= (\d -> (return . length . allActors) d)
+> actorCount = allDetails >>= (return . length . allActors)
+
+> biggestLink a = allDetails >>= (\d -> (return . maxTuple) $ adjLim a d limit)
+>                 where maxTuple ((a,i):[]) = (a,i)
+>                       maxTuple ((a1,i1):(a2,i2):as) = if i1 > i2 then maxTuple ((a1,i1):as) else maxTuple ((a2,i2):as)
