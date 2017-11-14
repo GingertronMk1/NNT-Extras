@@ -6,6 +6,8 @@ It ignores backstage roles, but now takes into account Freshers' Fringes, mostly
 
 Furthermore, it should work with any theatre/group of performances, as long as said groups can be represented by a tuple of the form (Show Name, List Of Actors)
 
+## How-To
+
 To use, you want the Haskell Platform:
 - Go to [here](www.haskell.org/downloads#platform)
 - Pick your platform
