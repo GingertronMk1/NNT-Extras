@@ -4,6 +4,8 @@ You know the Six Degrees Of Kevin Bacon? Yeah, this is that for the Nottingham N
 
 It ignores backstage roles, but now takes into account Freshers' Fringes, mostly for completeness sake
 
+Furthermore, it should work with any theatre/group of performances, as long as said groups can be represented by a tuple of the form (Show Name, List Of Actors)
+
 To use, you want the Haskell Platform:
 - Go to [here](www.haskell.org/downloads#platform)
 - Pick your platform
