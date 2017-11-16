@@ -3,3 +3,5 @@
 !*.*
 *.o
 *.hi
+*.txt
+*.DS_Store
