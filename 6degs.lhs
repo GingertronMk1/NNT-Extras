@@ -35,6 +35,8 @@ A few test variables now:
 > limit = 1000
 > showsPath :: String
 > showsPath = "../history-project/_shows/"
+> excludedShows :: [String]
+> excludedShows = ["freshers_fringe","charity_gala"]
 > me :: Actor
 > me = "Jack Ellis"
 > fr :: Actor
@@ -67,9 +69,9 @@ And that is the filepath for all of the shows that have records at the NNT.
 
 > allFiles :: IO [FilePath]
 > allFiles = do baseDir <- getDirectoryContents showsPath
->               showsInDirs <- (sequence . map (getDirContentsWPrep . (\s -> showsPath ++ s ++ "/"))) (dropDots baseDir)
+>               showsInDirs <- (sequence . map (prepDirContents . (\s -> showsPath ++ s ++ "/"))) (dropDots baseDir)
 >               (return . flatten) showsInDirs
->               where getDirContentsWPrep s = getDirectoryContents s >>= (\c -> (return . map (s++)) (dropDots c))
+>               where prepDirContents s = getDirectoryContents s >>= return . map (s++) . dropDots
 >                     dropDots = filter (not . isPrefixOf ".")
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -121,9 +123,11 @@ Applying these, we can extract the details from a specific file.
 
 Applying /that/, we can map it to the list of all files we generated earlier.
 
+> notExcludedShows :: String -> Bool
+> notExcludedShows s = (not . or . map (\x -> isInfixOf x s)) excludedShows
+
 > allDetails :: IO [Detail]
-> allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f | f <- files, isInfixOf ".md" f, not (isInfixOf "freshers_fringe" f), not (isInfixOf "charity_gala" f)]) -- uncomment this line to exclude Freshers' Fringes & Charity Gala
->-- allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f| f <- files, isInfixOf ".md" f])  -- uncomment this line to include Freshers' Fringes & Charity Gala
+> allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f | f <- files, isInfixOf ".md" f, notExcludedShows f])
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
@@ -226,6 +230,8 @@ EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
 > everyCombo = allDetails >>= (\d -> (putStrLn . ppAdj . sortBy (comparing snd) . flatten . map (\a -> adjLim a d limit)) (allActors d))
 
 > combosLengths = allDetails >>= (\d -> return [(a, length (adjLim a d limit)) | a <- allActors d])
+
+> allAdjs a = allDetails >>= return . allAdj a
 
 > ppAdj' :: Adj -> String
 > ppAdj' (a, i) = "([" ++ flatten (intersperse ", " a) ++ "], " ++ show i ++ ")\n"
