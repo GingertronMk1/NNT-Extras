@@ -1,25 +1,27 @@
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
---We're first going to import some things:
---- Data.List for isInfixOf, sort, and group (isInfixOf is used so much in this)
---- System.Directory so we can muck about with files and directories
---- Data.Ord for comparing, and more interesting sorting
---- And Data.Text and Data.Text.IO for stricter file reading
+-- We're first going to import some things:
+-- - Data.List for isInfixOf, sort, and group (isInfixOf is used so much in this)
+-- - Data.Ord for comparing, and more interesting sorting
+-- - System.Directory so we can muck about with files and directories
+-- - And Data.Text and Data.Text.IO for stricter file reading
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 import Data.List
-import System.Directory
 import Data.Ord
+import System.Directory
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---Now defining some data types:
---- Actor and ShowName for type clarity, otherwise it'd be lots of `String -> String` going on
---- [Details] for the list we're going to generate that contains all the important bits of a show
---- And Adj, a sort of adjacency list used in the actual finding of the degrees of separation
+-- Now defining some types:
+-- - Actor and ShowName for type clarity, otherwise it'd be lots of `String -> String` going on
+-- - [Details] for the list we're going to generate that contains all the important bits of a show
+-- - And Adj, a sort of adjacency list used in the actual finding of the degrees of separation
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 type Actor = String
 type ShowName = String
 type Details = (ShowName, [Actor])
 type Adj = ([Actor], Int)
+
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- A few test variables now:
 -- - limit is how far it should go before giving up on finding a link
@@ -30,15 +32,16 @@ type Adj = ([Actor], Int)
 limit :: Int
 limit = 1000
 showsPath :: String
-showsPath = "../history-project/_shows/"
+showsPath = "../history-project/_shows"
 excludedShows :: [String]
 excludedShows = ["freshers_fringe","charity_gala"]
 me :: Actor
 me = "Jack Ellis"
 fr :: Actor
 fr = "Fran Roper"
+
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---Helpers!
+-- Helpers!
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 flatten :: [[a]] -> [a]                     -- Flattening lists of lists
 flatten ass = [a | as <- ass, a <- as]
@@ -46,19 +49,20 @@ rmDups :: (Eq a, Ord a) => [a] -> [a]       -- Removing duplicate entries in a s
 rmDups = map head . group . sort
 allActors :: [Details] -> [Actor]           -- Getting every Actor from a list of Details
 allActors = rmDups . flatten . map snd
+
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---First we need to build a list of all of the shows that have records on the history site
+-- First we need to build a list of all of the shows that have records on the history site
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 allFiles :: IO [FilePath]
 allFiles = do showDirs <- prepDirContents showsPath
-              showsInDirs <- (sequence . map (prepDirContents . (++"/"))) showDirs
+              showsInDirs <- (sequence . map prepDirContents) showDirs
               (return . flatten) showsInDirs
-           where prepDirContents s = getDirectoryContents s >>= return . map (s++) . dropDots
+           where prepDirContents s = let s' = s++"/" in (getDirectoryContents) s' >>= return . map (s'++) . dropDots
                  dropDots = filter (not . isPrefixOf ".")
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---Now that we've got a list of all of the shows, we need to extract from it a list of all actors.
---First we're going to extract just the actors from a single show, as such:
+-- Now that we've got a list of all of the shows, we need to extract from it a list of all actors.
+-- First we're going to extract just the actors from a single show, as such:
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 stripShit :: String -> String   -- Stripping out any characters that might surround an actor or show's name
 stripShit s                     -- Whitespace, quotation marks, colons, etc.
@@ -92,7 +96,7 @@ allDetails :: IO [Details]                                                      
 allDetails = allFiles >>= (\files -> (sequence . map showDetails) [f | f <- files, isInfixOf ".md" f, notExcludedShows f])
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
+-- Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 baseAdj :: Actor -> [Adj] -- First, a brief function to turn an Actor into the most basic possible Adj WRT that Actor, i.e. themself and a degree of 0
 baseAdj a = [([a], 0)]
@@ -117,7 +121,6 @@ allAdj a d = baa ++ fellowAdj baa d []  -- so all you've to do is supply an Acto
 adjLim :: Actor -> [Details] -> Int -> [Adj]  --allAdj is in theory an infinite list, so we use adjLim to limit it
 adjLim a d l = takeWhile ((<=l) . snd) (allAdj a d)
 
-
 adjSearch :: Actor -> Actor -> [Details] -> Adj                                       -- adjSearch now takes the list generated by adjLim and if no list starts with the searched Actor,
 adjSearch a1 a2 d = if alList == [] then ([a1,a2], 1000) else head alList             -- returns the two Actors and 1000 as an error code.
                     where alList = filter ((== a1) . head . fst) (adjLim a2 d limit)  -- If it does hit, it returns that Adj.
@@ -130,11 +133,12 @@ adjCheck a1 a2 d                                          -- If they don't it re
   | otherwise                       = adjSearch a1 a2 d
   where aa = allActors d
 
-link :: Actor -> Actor -> [Details] -> String --`links` is a helper function that takes a list of Actors and a list of Details and uses those to find the Shows that link each pair of Actors.
+link :: Actor -> Actor -> [Details] -> String -- link takes two actors and a list of Details and finds the link between the actors
 link a1 a2 d = "- " ++ a1 ++ " was in " ++ (fst . head . filter ((\as -> elem a1 as && elem a2 as) . snd)) d ++ " with " ++ a2
-links :: [Actor] -> [Details] -> String
-links (a1:a2:as) d = case as of []        -> link a1 a2 d
-                                otherwise -> link a1 a2 d ++ "\n" ++ links (a2:as) d
+
+links :: [Actor] -> [Details] -> String -- links then applies this across a list of Actors, doing them two at a time
+links (a1:a2:[]) d = link a1 a2 d
+links (a1:a2:as) d = link a1 a2 d ++ "\n" ++ links (a2:as) d
 
 ppAdjCheck :: Actor -> Actor -> [Details] -> String -- Finally for the non-IO portion of this bit, ppAdjCheck takes the Actor names and the Detail list,
 ppAdjCheck a1 a2 d                                  -- performs adjCheck on them, and returns the appropriate String
@@ -155,7 +159,7 @@ main = do a1 <- getLine
           main' a1 a2
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
+-- EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 test = main' me fr
 everyCombo = allDetails >>= writeFile "Adjs.txt" . ppAdj . sortBy (comparing snd) . everyCombo'
