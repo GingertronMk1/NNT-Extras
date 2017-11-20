@@ -19,9 +19,8 @@ import qualified Data.Text.IO as TIO
 -- - And Adj, a sort of adjacency list used in the actual finding of the degrees of separation
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 type Actor = String
-type ShowName = String
 type Role = String
-type PersonDetails = (Actor, [(ShowName, [Role])])
+type PersonDetails = (Actor, [Role])
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- A few test variables now:
@@ -38,7 +37,6 @@ roleVal s
   | s == "Director"                               = 100
   | s == "Executive Producer"                     = 100
   | s == "Producer"                               = 80
-  | s == "Acting"                                 = 60
   | s == "Technical Director"                     = 60
   | s == "Tech Master"                            = 60    -- fucking CrystalQuest
   | s == "Lighting Designer"                      = 40
@@ -50,7 +48,6 @@ roleVal s
   | s == "Venue Technician"                       = 20
   | s == "Projection Design"                      = 20
   | s == "Publicity Manager"                      = 20
-  | s == "FFDirecting"                            = 20
   | s == "Publicity Designer"                     = 15
   | s == "Poster Designer"                        = 15
   | s == "Poster Design"                          = 15
@@ -104,39 +101,60 @@ stripShit s                     -- Whitespace, quotation marks, colons, etc.
 jsonData :: IO [[String]]
 jsonData = myReadFile peopleJSON >>= return . filter (elem "        \"type\": \"person\",") . map lines . splitOn "    \n\n    ,\n"
 
+extractRoles :: [String] -> [Role]
 extractRoles = flatten . map (map stripShit . splitOn "," . dropWhile (/='['))
+
+getRoles' :: [String] -> [Role]
 getRoles' = extractRoles . filter (isPrefixOf "                \"roles\": [") . takeWhile (not . isPrefixOf "        \"committees\": [")
-getRoles = jsonData >>= return . map getRoles'
 
-getName' = extractName . head . filter (isPrefixOf "        \"name\": ")
-extractName = stripShit . dropWhile (/=':')
-getNames = jsonData >>= return . map getName'
-
-getRoleVals = getXP . getRoles'
-
-nameRoles l = (getName' l, getRoles' l)
-nameRolesVals (a, rs) = (a, getXP rs)
-
-getXP' [] flag = 0
+getXP' :: [Role] -> [Role] -> Int
+getXP' [] flags                                       = 0
 getXP' (r:rs) flags
   | isPrefixOf "Shadow" r || isPrefixOf "Assistant" r = getXP' rs (r:flags)
-  | elem ("Shadow " ++ r) flags = 2*(roleVal r) + getXP' rs (filter (/= "Shadow " ++ r) flags)
-  | elem ("Assistant " ++ r) flags = 2*(roleVal r) + getXP' rs (filter (/= "Assistant " ++ r) flags)
-  | otherwise = roleVal r + getXP' rs flags
+  | elem ("Shadow " ++ r) flags                       = 2*(roleVal r) + getXP' rs (filter (/= "Shadow " ++ r) flags)
+  | elem ("Assistant " ++ r) flags                    = 2*(roleVal r) + getXP' rs (filter (/= "Assistant " ++ r) flags)
+  | otherwise                                         = roleVal r + getXP' rs flags
 
+getXP :: [String] -> Int
 getXP rs = getXP' rs []
 
+getRoleVals :: [String] -> Int
+getRoleVals = getXP . getRoles'
+
+getName' :: [String] -> Actor
+getName' = extractName . head . filter (isPrefixOf "        \"name\": ")
+
+allNames = jsonData >>= return . map getName'
+
+extractName :: String -> Actor
+extractName = stripShit . dropWhile (/=':')
+
+nameRoles :: [String] -> PersonDetails
+nameRoles l = (getName' l, getRoles' l)
+
+nameRolesVals :: (Actor, [Role]) -> (Actor, Int)
+nameRolesVals (a, rs) = (a, getXP rs)
+
+
+namesRoles :: IO [PersonDetails]
 namesRoles = jsonData >>= return . map nameRoles
 
-findOne' :: String -> [[String]] -> [String]
-findOne' a = head . filter (\ls -> a == getName' ls)
+main'' :: String -> [[String]] -> [String]
+main'' a = head . filter (\ls -> a == getName' ls)
 
 oneXP :: Actor -> [[String]] -> (Actor, Int)
-oneXP a = nameRolesVals . nameRoles . findOne' a
+oneXP a d = if elem a (map getName' d) then (nameRolesVals . nameRoles . main'' a) d else (a, 0)
 
-findOne a = jsonData >>= return . oneXP a
+main' :: Actor -> IO (Actor, Int)
+main' a = jsonData >>= return . oneXP a
 
-main = getLine >>= findOne
+main :: IO (Actor, Int)
+main = getLine >>= main'
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- Other things here
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 everyone = jsonData >>= return . sortBy (comparing snd) . map (nameRolesVals . nameRoles)
 
