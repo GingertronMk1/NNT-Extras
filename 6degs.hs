@@ -1,14 +1,16 @@
----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- We're first going to import some things:
 -- - Data.List for isInfixOf, sort, and group (isInfixOf is used so much in this)
+-- - Data.List.Split to deal with the JSON files
 -- - Data.Ord for comparing, and more interesting sorting
 -- - System.Directory so we can muck about with files and directories
 -- - And Data.Text and Data.Text.IO for stricter file reading
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 import Data.List
+import Data.List.Split
 import Data.Ord
 import System.Directory
-import Data.List.Split
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -52,7 +54,7 @@ myReadFile :: FilePath -> IO String
 myReadFile = fmap T.unpack . TIO.readFile
 stripShit :: String -> String   -- Stripping out any characters that might surround an actor or show's name
 stripShit s                     -- Whitespace, quotation marks, colons, etc.
- | hs == ' ' || hs == '\"' || hs == '\'' || hs == ':' || hs == '[' = stripShit (tail s)
+ | hs == ' ' || hs == '\"' || hs == '\'' || hs == '[' || hs == ':' = stripShit (tail s)
  | ls == ' ' || ls == '\"' || ls == '\'' || ls == ']' || ls == ',' = stripShit (init s)
  | otherwise                                                       = s
  where hs = head s
