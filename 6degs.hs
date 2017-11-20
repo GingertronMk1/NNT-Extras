@@ -134,5 +134,5 @@ main' a1 a2 = allDetails >>= putStrLn . ppAdjCheck a1 a2  -- and putStrLn's the 
 
 main :: IO ()           --main takes two getLines and returns main' with them as input
 main = do a1 <- getLine
-a2 <- getLine
-main' a1 a2
+          a2 <- getLine
+          main' a1 a2
