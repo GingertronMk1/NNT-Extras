@@ -1,3 +1,4 @@
+
 -------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- We're first going to import some things:
 -- - Data.List for isInfixOf, sort, and group (isInfixOf is used so much in this)
@@ -23,6 +24,8 @@ type Actor = String
 type ShowName = String
 type Details = (ShowName, [Actor])
 type Adj = ([Actor], Int)
+type Role = String
+type PersonDetails = (Actor, [(ShowName, [Role])])
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- A few test variables now:
@@ -33,8 +36,6 @@ type Adj = ([Actor], Int)
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 limit :: Int
 limit = 1000
-showsPath :: String
-showsPath = "../history-project/_shows"
 searchJSON :: FilePath
 searchJSON = "search.json"
 excludedShows :: [String]
@@ -53,11 +54,11 @@ myReadFile :: FilePath -> IO String
 myReadFile = fmap T.unpack . TIO.readFile
 stripShit :: String -> String   -- Stripping out any characters that might surround an actor or show's name
 stripShit s                     -- Whitespace, quotation marks, colons, etc.
-  | hs == ' ' || hs == '\"' || hs == '\'' || hs == ':' || hs == '[' = stripShit (tail s)
-  | ls == ' ' || ls == '\"' || ls == '\'' || ls == ']' || ls == ',' = stripShit (init s)
-  | otherwise                                                       = s
-  where hs = head s
-        ls = last s
+ | hs == ' ' || hs == '\"' || hs == '\'' || hs == '[' || hs == ':' = stripShit (tail s)
+ | ls == ' ' || ls == '\"' || ls == '\'' || ls == ']' || ls == ',' = stripShit (init s)
+ | otherwise                                                       = s
+ where hs = head s
+       ls = last s
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- What we can do instead of all that is generate the list of Details from a JSON file, like so:

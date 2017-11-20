@@ -1,23 +1,12 @@
-# The Six Degrees Of The NNT
+# NNT Statistics Fun
 
-You know the Six Degrees Of Kevin Bacon? Yeah, this is that for the Nottingham New Theatre
+This repository contains two main files: `6degs.hs` and `NNTXP.hs`
 
-It ignores backstage roles, but now takes into account Freshers' Fringes, mostly for completeness sake
+## 6degs.hs
+This program finds links between actors at the Nottingham New Theatre in a 'Six Degrees Of Kevin Bacon' style.
+So for instance, if Jeff was in Macbeth with Bev, and Bev was in Hamlet with Richard, Jeff would have 2 degrees of separation to Richard.
+This only works for people who have *acted* together, it doesn't take into account backstage roles at all. For you guys, there's...
 
-Furthermore, it should work with any theatre/group of performances, as long as said groups can be represented by a tuple of the form (Show Name, List Of Actors)
-
-## How-To
-
-To use, you want the Haskell Platform:
-- Go to [here](www.haskell.org/downloads#platform)
-- Pick your platform
-- Install using the provided instructions
-
-You also want a local copy of the NNT's history project
-- Go to [here](www.github.com/newtheatre/history-project)
-- Download the folder and put it in the same directory as the one containing this folder
-
-To actually play around with it:
-- Navigate to this folder in your terminal
-- `ghci 6degs`
-- Have fun!
+## NNTXP.hs
+This takes a person's name and returns an 'XP' score.
+This score is based on all of the backstage roles that person has done in their career at the NNT, from Directing to Operating and everything in between!
