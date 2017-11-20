@@ -41,7 +41,7 @@ searchJSON = "search.json"
 peopleJSON :: FilePath
 peopleJSON = "people-collect.json"
 excludedShows :: [String]
-excludedShows = ["freshers_fringe","charity_gala"]
+excludedShows = ["Freshers' Fringe","Charity Gala"]
 me :: Actor
 me = "Jack Ellis"
 fr :: Actor
@@ -72,10 +72,10 @@ stripShit s                     -- Whitespace, quotation marks, colons, etc.
 sJSONShows :: IO [[String]]
 sJSONShows = myReadFile searchJSON >>= return . filter (elem "        \"type\": \"show\",") . map (lines) . splitOn "\n    \n    \n\n    \n    ,"
 
-sJSONDetails' :: [String] -> Details
-sJSONDetails' s = (sJSONTitle s, sJSONCast s)
-sJSONDetails :: IO [Details]
-sJSONDetails = sJSONShows >>= return . map sJSONDetails'
+allDetails' :: [String] -> Details
+allDetails' s = (sJSONTitle s, sJSONCast s)
+allDetails :: IO [Details]
+allDetails = sJSONShows >>= return . filter (\(s,as) -> not (elem s excludedShows)) . map allDetails'
 
 sJSONTitle = stripShit . dropWhile (/=':') . head . filter (isInfixOf "\"title\":")
 
@@ -137,7 +137,7 @@ ppAdjCheck a1 a2 d                                  -- performs adjCheck on them
   where (as, i) = adjCheck a1 a2 d
 
 main' :: Actor -> Actor -> IO ()                          -- main' is where the IO starts; it feeds showDetails into ppAdjCheck
-main' a1 a2 = sJSONDetails >>= putStrLn . ppAdjCheck a1 a2  -- and putStrLn's the resultant String so we get nice '\n' newlines
+main' a1 a2 = allDetails >>= putStrLn . ppAdjCheck a1 a2  -- and putStrLn's the resultant String so we get nice '\n' newlines
 
 main :: IO ()           --main takes two getLines and returns main' with them as input
 main = do a1 <- getLine
@@ -145,119 +145,137 @@ main = do a1 <- getLine
           main' a1 a2
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
--- EVERYTHING BELOW HERE IS JUST ME PLAYING WITH NNT STATISTICS
+-- ME FIDDLING WITH NNT STATISTICS
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 test = main' me fr
-everyCombo = sJSONDetails >>= writeFile "Adjs.txt" . ppAdj . sortBy (comparing snd) . everyCombo'
-everyComboLength = sJSONDetails >>= return . length . everyCombo'
+everyCombo = allDetails >>= putStrLn . ppAdj . sortBy (comparing snd) . everyCombo'
+everyComboLength = allDetails >>= return . length . everyCombo'
 everyCombo' d = (filter ((>0) . snd) . flatten . map (\a -> adjLim a d limit) . allActors) d
-combosLengths = sJSONDetails >>= (\d -> return [(a, length (adjLim a d limit)) | a <- allActors d])
-everyActor = sJSONDetails >>= return . allActors
-allAdjs a = sJSONDetails >>= return . allAdj a
+combosLengths = allDetails >>= (\d -> return [(a, length (adjLim a d limit)) | a <- allActors d])
+everyActor = allDetails >>= return . allActors
+allAdjs a = allDetails >>= return . allAdj a
 ppAdj' :: Adj -> String
 ppAdj' (a, i) = "([" ++ flatten (intersperse ", " a) ++ "], " ++ show i ++ ")\n"
 ppAdj :: [Adj] -> String
 ppAdj = flatten . map ppAdj'
 showCount :: IO Int
-showCount = sJSONDetails >>= return . length
+showCount = allDetails >>= return . length
 actorCount :: IO Int
-actorCount = sJSONDetails >>= return . length . allActors
+actorCount = allDetails >>= return . length . allActors
 
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+-- NNTXP
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 jsonData :: IO [[String]]
-jsonData = (fmap T.unpack . TIO.readFile) peopleJSON >>= return . drop 4 . init . map lines . splitOn "    \n\n"
+jsonData = myReadFile peopleJSON >>= return . init . map lines . splitOn "    \n\n"
+jsonData2 = myReadFile peopleJSON >>= return . head . map lines . splitOn "    \n\n"
 
---something = jsonData >>= return . map (takeWhile (/="       ],") . dropWhile (/="        \"shows\": ["))
-
-showRolesGen' :: [String] -> [(ShowName, [Role])]
-showRolesGen' (x:[]) = []
-showRolesGen' (x:y:zs) = if (isPrefixOf "                \"title\": " x) then (t, r):(showRolesGen zs) else showRolesGen (y:zs)
-                         where t = (stripShit . dropWhile (/=':')) x
-                               r = (filter (\s -> s/="" && s/=",") . splitOn "\"" . stripShit . dropWhile (/='[')) y
-
-showRolesGen = showRolesGen' . takeWhile (/= "        ],")
-
-rng' :: [[String]] -> [PersonDetails]
-rng' js = [(getName j, showRolesGen j) | j <- js]
-
-rng :: IO [PersonDetails]
-rng = jsonData >>= return . rng'
-
-justRoles :: PersonDetails -> [Role]
-justRoles = flatten . map snd . snd
-
-xpCalc :: PersonDetails -> Int
-xpCalc = roleXP2 . flatten . map snd . snd
-roles' :: Actor -> [PersonDetails] -> (Actor, [(Role, Int)])
-roles' s r = (s, (filter (\x -> (snd x==0)  && (fst x /="null")) . map rxp . justRoles . head . filter ((==s) . fst)) r)
-
-allRoles' :: [PersonDetails] -> [(Actor, [(Role, Int)])]
-allRoles' r = map (\x -> roles' (fst x) r) r
---roles :: IO [(Actor, [(Role, Int)])]
-emptyRoles = rng >>= putStrLn . flatten . intersperse "\n" . map show. filter ((/=[]) . snd) . allRoles'
-
-allRoles = rng >>= return . sortBy (comparing snd) . map xpt
-
-xp' s r = roleXP2 . justRoles . head . filter ((==s) . fst)
-
---xp :: Actor -> IO Int
---xp s = rng >>= return . xp' s
-
-xpt :: PersonDetails -> (Actor, Int)
-xpt (a, rs) = (a, roleXP2 ((flatten . map snd) rs))
+jsonRolesTest = jsonData >>= return . sortBy (comparing fst) . map nameRoles
 
 getName = stripShit . dropWhile (/=':') . head . filter (isPrefixOf "        \"name\": ")
 
+stripTitle = stripShit . dropWhile (/=':')
+
+stripRoles = map stripShit . splitOn "," . dropWhile (/=':')
+
+jsonRoles' :: [String] -> [[Role]]
+jsonRoles' [] = []
+jsonRoles' (l:ls) = if isPrefixOf "                \"roles\": " l then (stripRoles l):(jsonRoles' ls)
+                                                                  else jsonRoles' ls
+
+jsonRoles = flatten . jsonRoles' . takeWhile (not . isPrefixOf "        \"committees\": ")
+
+findActorRoles a ass = (head . filter (elem ("        \"name\": \"" ++ a ++ "\","))) ass
+
+nameRoles :: [String] -> (Actor, [Role])
+nameRoles ls = (getName ls, jsonRoles ls)
+
+actorShows d s = (s, (map fst . filter (elem s . snd)) d)
+allActorsShows d = map (actorShows d) (allActors d)
+actorShows' :: IO [(Actor, [ShowName])]
+actorShows' = allDetails >>= return . allActorsShows
+
+addActing :: [(Actor, [ShowName])] -> (Actor, [Role]) -> (Actor, [Role])
+addActing d (a, rs) = if filta == [] then (a, rs) else addActing' (head filta) (a, rs)
+                        where filta = filter ((==a) . fst) d
+
+addActing' :: (Actor, [ShowName]) -> (Actor, [Role]) -> (Actor, [Role])
+addActing' (a1, []) (a2, rs) = (a2, rs)
+addActing' (a1, s:ss) (a2, rs) = if s == "Freshers' Fringe" then addActing' (a1, ss) (a2, "FFActing":rs)
+                                                            else addActing' (a1, ss) (a2, "Acting":rs)
+
+nntXP2 a = do showDetails <- allDetails
+              manDetails <- jsonData
+              (return . addActing showDetails . nameRoles . findActorRoles a) manDetails
 
 
-findPerson s = filter (or . map (isInfixOf s))
-printOnePerson s = jsonData >>= return . findPerson s
+nntXP' :: [(Actor, [ShowName])] -> [(Actor, [Role])] -> [(Actor, Int)]
+nntXP' ass arss = (sortBy (comparing snd) . map (personXP . addActing ass)) arss
 
-test2 s = or . map (isInfixOf s)
+nntXP = do showDeets <- allDetails
+           peepDeets <- jsonData
+           let ass = allActorsShows showDeets
+           let arss = map nameRoles peepDeets
+           return $ nntXP' (allActorsShows showDeets) (map nameRoles peepDeets)
 
-roleXP' s
-  | s == "Director"             = 100
-  | s == "Producer"             = 80
-  | s == "Acting"               = 60
-  | s == "Technical Director"   = 60
-  | s == "Lighting Designer"    = 40
-  | s == "Lighting Design"      = 40
-  | s == "Sound Designer"       = 30
-  | s == "Venue Technician"     = 20
-  | s == "Projection Design"    = 20
-  | s == "Publicity Manager"    = 20
-  | s == "Publicity Designer"   = 15
-  | s == "Poster Designer"      = 15
-  | s == "Poster Design"        = 15
---  | isInfixOf "Video" s         = 10
-  | s == "Accent Coach"         = 10
-  | s == "Set Design"           = 10
-  | s == "Set Designer"         = 10
-  | s == "Sound"                = 10
-  | s == "Production Assistant" = 10
-  | s == "Hair and Make-Up"     = 10
-  | s == "Set Construction"     = 5
-  | s == "Design Assistant"     = 5
-  | s == "Stage Manager"        = 5
-  | s == "Technical Operator"   = 5
-  | otherwise                   = 0
-
-rxp s = (s, roleXP' s)
-
-roleXP :: [String] -> Int
-roleXP = sum . map roleXP'
-
-roleXP2' [] flag = 0
-roleXP2' (r:rs) flags
-  | isPrefixOf "Shadow" r || isPrefixOf "Assistant" r = roleXP2' rs (r:flags)
-  | elem ("Shadow " ++ r) flags = (roleMult . roleXP') r + roleXP2' rs (filter (/= "Shadow " ++ r) flags)
-  | elem ("Assistant " ++ r) flags = (roleMult . roleXP') r + roleXP2' rs (filter (/= "Assistant " ++ r) flags)
-  | otherwise = roleXP' r + roleXP2' rs flags
-
-roleXP2 rs = roleXP2' rs []
-
-roleMult n = round (1.5 * n)
+nntXP1 a = nntXP >>= return . head . filter ((==a) . fst)
 
 
+roleXP :: Role -> Int
+roleXP s
+  | s == "Director"                   = 100
+  | s == "Executive Producer"         = 100
+  | s == "Producer"                   = 80
+  | s == "Acting"                     = 60
+  | s == "Technical Director"         = 60
+  | s == "Tech Master"                = 60    -- fucking CrystalQuest
+  | s == "Lighting Designer"          = 40
+  | s == "Lighting Design"            = 40
+  | s == "Set Design"                 = 30
+  | s == "Set Design / Construction"  = 30
+  | s == "Set Designer"               = 30
+  | s == "Sound Designer"             = 30
+  | s == "Venue Technician"           = 20
+  | s == "Projection Design"          = 20
+  | s == "Publicity Manager"          = 20
+  | s == "FFDirecting"                = 20
+  | s == "Publicity Designer"         = 15
+  | s == "Poster Designer"            = 15
+  | s == "Poster Design"              = 15
+  | isInfixOf "Video" s               = 10
+  | s == "Musician"                   = 10
+  | s == "Accent Coach"               = 10
+  | s == "Sound"                      = 10
+  | s == "Production Assistant"       = 10
+  | s == "Costume Designer"           = 10
+  | s == "Hair and Make-Up"           = 10
+  | s == "Make-Up"                    = 10
+  | s == "Make-up"                    = 10
+  | s == "Make Up Artist"             = 10
+  | s == "FFActing"                   = 10
+  | s == "Set Construction"           = 5
+  | s == "Design Assistant"           = 5
+  | s == "Stage Manager"              = 5
+  | s == "Technical Operator"         = 5
+  | otherwise                         = 0
+
+--roleMult :: Int -> Int
+--roleMult n = round (1.5 * n)
+roleMult n = 2 * n
+
+getXP' [] flag = 0
+getXP' (r:rs) flags
+  | isPrefixOf "Shadow" r || isPrefixOf "Assistant" r = getXP' rs (r:flags)
+  | elem ("Shadow " ++ r) flags = (roleMult . roleXP) r + getXP' rs (filter (/= "Shadow " ++ r) flags)
+  | elem ("Assistant " ++ r) flags = (roleMult . roleXP) r + getXP' rs (filter (/= "Assistant " ++ r) flags)
+  | otherwise = roleXP r + getXP' rs flags
+
+getXP rs = getXP' rs []
+
+personXP (n, rs) = (n, getXP rs)
 
 
+nullRoles = jsonData >>= putStrLn . flatten . intersperse "\n" . map show . filter (\t -> not (isPrefixOf "Assistant" (fst t) || isPrefixOf "Shadow" (fst t))) .sortBy (comparing snd) . map (\g -> (head g, length g)) .group . sort . filter ((==0) . roleXP) . flatten . map (snd . nameRoles)
+--nullRoles = jsonData >>= return . sort . filter ((==0) . roleXP) . flatten . map (snd . nameRoles)
