@@ -54,8 +54,8 @@ myReadFile :: FilePath -> IO String
 myReadFile = fmap T.unpack . TIO.readFile
 stripShit :: String -> String   -- Stripping out any characters that might surround an actor or show's name
 stripShit s                     -- Whitespace, quotation marks, colons, etc.
-  | hs == ' ' || hs == '\"' || hs == '\'' || hs == '[' || hs == ':' = stripShit (tail s)
-  | ls == ' ' || ls == '\"' || ls == '\'' || ls == ']' || ls == ',' = stripShit (init s)
+  | hs == ' ' || hs == '\"' || hs == '[' || hs == ':' = stripShit (tail s)
+  | ls == ' ' || ls == '\"' || ls == ']' || ls == ',' = stripShit (init s)
   | otherwise                                                       = s
  where hs = head s
        ls = last s
