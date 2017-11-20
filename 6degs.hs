@@ -54,9 +54,9 @@ myReadFile :: FilePath -> IO String
 myReadFile = fmap T.unpack . TIO.readFile
 stripShit :: String -> String   -- Stripping out any characters that might surround an actor or show's name
 stripShit s                     -- Whitespace, quotation marks, colons, etc.
- | hs == ' ' || hs == '\"' || hs == '\'' || hs == '[' || hs == ':' = stripShit (tail s)
- | ls == ' ' || ls == '\"' || ls == '\'' || ls == ']' || ls == ',' = stripShit (init s)
- | otherwise                                                       = s
+  | hs == ' ' || hs == '\"' || hs == '\'' || hs == '[' || hs == ':' = stripShit (tail s)
+  | ls == ' ' || ls == '\"' || ls == '\'' || ls == ']' || ls == ',' = stripShit (init s)
+  | otherwise                                                       = s
  where hs = head s
        ls = last s
 
@@ -67,11 +67,13 @@ sJSONShows :: IO [[String]]
 sJSONShows = myReadFile searchJSON >>= return . filter (elem "        \"type\": \"show\",") . map (lines) . splitOn "\n    \n    \n\n    \n    ,"
 
 allDetails' :: [String] -> Details
-allDetails' s = (sJSONTitle s, sJSONCast s)
+allDetails' s = (sJSONTitle s ++ " (" ++ sJSONYear s ++ ")", sJSONCast s)
 allDetails :: IO [Details]
 allDetails = sJSONShows >>= return . filter (\(s,as) -> not (elem s excludedShows)) . map allDetails'
 
 sJSONTitle = stripShit . dropWhile (/=':') . head . filter (isInfixOf "\"title\":")
+
+sJSONYear = flatten . intersperse "-" . splitOn "&ndash;" . stripShit . dropWhile (/=':') . head . filter (isPrefixOf "        \"year_title\": ")
 
 sJSONCast = map stripShit . init . splitOn ", " . dropWhile (/=':') . head . filter (isInfixOf "\"cast\":")
 
