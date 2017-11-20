@@ -24,8 +24,6 @@ type Actor = String
 type ShowName = String
 type Details = (ShowName, [Actor])
 type Adj = ([Actor], Int)
-type Role = String
-type PersonDetails = (Actor, [(ShowName, [Role])])
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- A few test variables now:
@@ -38,8 +36,10 @@ limit :: Int
 limit = 1000
 searchJSON :: FilePath
 searchJSON = "search.json"
-excludedShows :: [String]
-excludedShows = ["Freshers' Fringe","Charity Gala"]
+excludedShows :: [ShowName]
+excludedShows = ["Charity Gala (2015-16)"] ++ ffGen
+ffGen :: [ShowName]
+ffGen = ["Freshers' Fringe (" ++ show (n-1) ++ "-" ++ drop 2 (show n) ++ ")" | n <- [2010..2017]]
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Helpers!
