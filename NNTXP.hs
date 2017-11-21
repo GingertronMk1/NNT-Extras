@@ -54,6 +54,7 @@ roleVal s
   | s == "Accent Coach"                           = 10
   | s == "Sound"                                  = 10
   | s == "Production Assistant"                   = 10
+  | s == "Assistant Producer"                     = 10
   | s == "Costume Designer"                       = 10
   | s == "Costumes"                               = 10
   | s == "Hair and Make-Up"                       = 10
@@ -156,5 +157,13 @@ main = getLine >>= main'
 everyone = jsonData >>= return . sortBy (comparing snd) . map (nameRolesVals . nameRoles)
 
 
-zeroRoles = namesRoles >>= putStrLn . flatten . intersperse "\n" . map (show. headLength) . sortBy (comparing length) . group . sort . filter (\r -> (r/="null") && (roleVal r == 0)) . flatten . map snd
+zeroRoles = namesRoles >>= putStrLn . flatten 
+            . intersperse "\n" 
+            . map (show . headLength) 
+            . sortBy (comparing length) 
+            . group 
+            . sort 
+            . filter (\r -> (not (isPrefixOf "Shadow" r)) && (r/="null") && (roleVal r == 0)) 
+            . flatten 
+            . map snd
             where headLength as = (head as, length as)

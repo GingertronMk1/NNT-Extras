@@ -38,6 +38,7 @@ The current Role -> XP table looks like this:
 | Accent Coach                          | 10        |
 | Sound                                 | 10        |
 | Production Assistant                  | 10        |
+| Assistant Producer                    | 10        |
 | Costume Designer                      | 10        |
 | Costumes                              | 10        |
 | Hair and Make-Up                      | 10        |
