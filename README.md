@@ -32,7 +32,7 @@ The current Role -> XP table looks like this:
 | Publicity Designer                    | 15        |
 | Poster Designer                       | 15        |
 | Poster Design                         | 15        |
-| Anything Video  s                     | 10        |
+| Anything Video                        | 10        |
 | Musician                              | 10        |
 | Accent Coach                          | 10        |
 | Sound                                 | 10        |
