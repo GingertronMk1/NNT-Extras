@@ -58,5 +58,8 @@ The current Role -> XP table looks like this:
 | Technical Operator                    | 5         |
 | Otherwise                             | 0         |
 
+Shadow roles currently do not give a direct score, however confer a 2x bonus to the next time a person does the actual role, i.e. if Kelly Shadow TDs one show and then TDs another, they get 120XP for the show they TD.
+These bonuses do not stack and Shadowing one role and then another does not erase the first bonus, so if Kelly Shadow LDs, then Shadow TDs, then LDs, they still get the 2x bonus for LDing.
+
 If you think the balance is off, feel free to raise an issue!
 
