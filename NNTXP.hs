@@ -14,9 +14,8 @@ import qualified Data.Text.IO as TIO
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Now defining some types:
--- - Actor and ShowName for type clarity, otherwise it'd be lots of `String -> String` going on
--- - [Details] for the list we're going to generate that contains all the important bits of a show
--- - And Adj, a sort of adjacency list used in the actual finding of the degrees of separation
+-- - Actor and Role for type clarity, otherwise it'd be lots of `String -> String` going on
+-- - PersonDetails: a tuple containing an Actor and a list of all the Roles they've had
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 type Actor = String
 type Role = String
@@ -24,10 +23,8 @@ type PersonDetails = (Actor, [Role])
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- A few test variables now:
--- - limit is how far it should go before giving up on finding a link
--- - showsPath is where the shows are in my copy of the history-project repo
--- - excludedShows is shows that are not taken into account
--- - And myself and some people as test cases for the actual degree-finder
+-- - peopleJSON is the location of the JSON file from which the information is taken
+-- - roleVal is a list of roles and the XP score they have
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 peopleJSON :: FilePath
 peopleJSON = "people-collect.json"
