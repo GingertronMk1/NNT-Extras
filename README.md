@@ -29,6 +29,7 @@ The current Role -> XP table looks like this:
 | Venue Technician                      | 20        |
 | Projection Design                     | 20        |
 | Publicity Manager                     | 20        |
+| Assistant Director                    | 15        |
 | Publicity Designer                    | 15        |
 | Poster Designer                       | 15        |
 | Poster Design                         | 15        |
