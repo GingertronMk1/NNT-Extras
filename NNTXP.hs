@@ -45,6 +45,7 @@ roleVal s
   | s == "Venue Technician"                       = 20
   | s == "Projection Design"                      = 20
   | s == "Publicity Manager"                      = 20
+  | s == "Assistant Director"                     = 15
   | s == "Publicity Designer"                     = 15
   | s == "Poster Designer"                        = 15
   | s == "Poster Design"                          = 15
@@ -107,10 +108,9 @@ getRoles' = extractRoles . filter (isPrefixOf "                \"roles\": [") . 
 getXP' :: [Role] -> [Role] -> Int
 getXP' [] flags                                       = 0
 getXP' (r:rs) flags
-  | isPrefixOf "Shadow" r || isPrefixOf "Assistant" r = getXP' rs (r:flags)
-  | elem ("Shadow " ++ r) flags                       = 2*(roleVal r) + getXP' rs (filter (/= "Shadow " ++ r) flags)
-  | elem ("Assistant " ++ r) flags                    = 2*(roleVal r) + getXP' rs (filter (/= "Assistant " ++ r) flags)
-  | otherwise                                         = roleVal r + getXP' rs flags
+  | isPrefixOf "Shadow" r           = getXP' rs (r:flags)
+  | elem ("Shadow " ++ r) flags     = 2*(roleVal r) + getXP' rs (filter (/= "Shadow " ++ r) flags)
+  | otherwise                       = roleVal r + getXP' rs flags
 
 getXP :: [String] -> Int
 getXP rs = getXP' rs []
