@@ -42,6 +42,7 @@ roleVal s
   | s == "Set Design / Construction"              = 30
   | s == "Set Designer"                           = 30
   | s == "Sound Designer"                         = 30
+  | s == "Musical Director"                       = 30
   | s == "Venue Technician"                       = 20
   | s == "Projection Design"                      = 20
   | s == "Publicity Manager"                      = 20
@@ -145,6 +146,9 @@ oneXP a d = if elem a (map getName' d) then (nameRolesVals . nameRoles . main'' 
 
 main' :: Actor -> IO (Actor, Int)
 main' a = jsonData >>= return . oneXP a
+
+mains' :: [Actor] -> IO [(Actor, Int)]
+mains' as = jsonData >>= (\d -> return (map (\a -> oneXP a d) as))
 
 main :: IO (Actor, Int)
 main = getLine >>= main'
