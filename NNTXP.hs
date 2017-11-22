@@ -59,6 +59,7 @@ roleVal s
   | s == "Costume Designer"                       = 10
   | s == "Costumes"                               = 10
   | s == "Hair and Make-Up"                       = 10
+  | s == "Hair & Make-Up"                         = 10
   | s == "Make Up / Costumes"                     = 10
   | s == "Make Up Artist / Hair"                  = 10
   | s == "Make Up Artist/Costumes/Blood Effects"  = 10
@@ -73,6 +74,7 @@ roleVal s
   | s == "Photography"                            = 10
   | s == "Set Construction"                       = 5
   | s == "Design Assistant"                       = 5
+  | s == "Designer"                               = 5
   | s == "Stage Manager"                          = 5
   | s == "Technical Operator"                     = 5
   | otherwise                                     = 0
