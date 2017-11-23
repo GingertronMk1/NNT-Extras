@@ -62,19 +62,26 @@ stripShit s                     -- Whitespace, quotation marks, colons, etc.
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- What we can do instead of all that is generate the list of Details from a JSON file, like so:
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
-sJSONShows :: IO [[String]]
+sJSONShows :: IO [[String]]   -- Reads the JSON file containing all the show information, returning it in a [[String]] format for processing
 sJSONShows = myReadFile searchJSON >>= return . filter (elem "        \"type\": \"show\",") . map (lines) . splitOn "\n    \n    \n\n    \n    ,"
 
-allDetails' :: [String] -> Details
-allDetails' s = (sJSONTitle s ++ " (" ++ sJSONYear s ++ ")", sJSONCast s)
-allDetails :: IO [Details]
-allDetails = sJSONShows >>= return . filter (\(s,as) -> not (elem s excludedShows)) . map allDetails'
-
+sJSONTitle :: [String] -> ShowName  -- Extracts the show title from sJSONShows
 sJSONTitle = stripShit . dropWhile (/=':') . head . filter (isInfixOf "\"title\":")
 
+sJSONYear :: [String] -> String -- Extracts the year of production; useful for clarity
 sJSONYear = flatten . intersperse "-" . splitOn "&ndash;" . stripShit . dropWhile (/=':') . head . filter (isPrefixOf "        \"year_title\": ")
 
+sJSONCast :: [String] -> [Actor]  -- Extracts the cast of the show
 sJSONCast = map stripShit . init . splitOn ", " . dropWhile (/=':') . head . filter (isInfixOf "\"cast\":")
+
+notExcluded :: Details -> Bool  -- Rather than use a lambda function in filter, I'd rather just use an actual function, again for clarity
+notExcluded (s, _) = not (elem s excludedShows)
+
+allDetails' :: [String] -> Details    -- Adding the year to the title
+allDetails' s = (sJSONTitle s ++ " (" ++ sJSONYear s ++ ")", sJSONCast s)
+
+allDetails :: IO [Details]    -- Returning a list of all shows, in a tuple of the form (ShowName, [Actor])
+allDetails = sJSONShows >>= return . filter notExcluded . map allDetails'
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
