@@ -38,7 +38,7 @@ searchJSON = "search.json"
 excludedShows :: [ShowName]
 excludedShows = ["Charity Gala (2015-16)"] ++ ffGen
 ffGen :: [ShowName]
-ffGen = ["Freshers' Fringe (" ++ show (n-1) ++ "-" ++ drop 2 (show n) ++ ")" | n <- [2010..2017]]
+ffGen = ["Freshers' Fringe (" ++ show (n-1) ++ "-" ++ drop 2 (show n) ++ ")" | n <- [2010..2030]]
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Helpers!
@@ -52,6 +52,7 @@ allActors = rmDups . flatten . map snd
 myReadFile :: FilePath -> IO String
 myReadFile = fmap T.unpack . TIO.readFile
 stripShit :: String -> String   -- Stripping out any characters that might surround an actor or show's name
+stripShit [] = []
 stripShit s                     -- Whitespace, quotation marks, colons, etc.
   | hs == ' ' || hs == '\"' || hs == '[' || hs == ':' = stripShit (tail s)
   | ls == ' ' || ls == '\"' || ls == ']' || ls == ',' = stripShit (init s)
@@ -63,16 +64,25 @@ stripShit s                     -- Whitespace, quotation marks, colons, etc.
 -- What we can do instead of all that is generate the list of Details from a JSON file, like so:
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 sJSONShows :: IO [[String]]   -- Reads the JSON file containing all the show information, returning it in a [[String]] format for processing
-sJSONShows = myReadFile searchJSON >>= return . filter (elem "        \"type\": \"show\",") . map (lines) . splitOn "\n    \n    \n\n    \n    ,"
+sJSONShows = myReadFile searchJSON >>= return 
+                                       . filter (elem "        \"type\": \"show\",")  -- only actual shows allowed
+                                       . map (lines)                                  -- split on '\n' chars
+                                       . splitOn "\n    \n    \n\n    \n    ,"        -- having split the document on that horrible lot
 
 sJSONTitle :: [String] -> ShowName  -- Extracts the show title from sJSONShows
 sJSONTitle = stripShit . dropWhile (/=':') . head . filter (isInfixOf "\"title\":")
 
 sJSONYear :: [String] -> String -- Extracts the year of production; useful for clarity
-sJSONYear = flatten . intersperse "-" . splitOn "&ndash;" . stripShit . dropWhile (/=':') . head . filter (isPrefixOf "        \"year_title\": ")
+sJSONYear = flatten
+            . intersperse "-" 
+            . splitOn "&ndash;" 
+            . stripShit 
+            . dropWhile (/=':') 
+            . head 
+            . filter (isPrefixOf "        \"year_title\": ")
 
 sJSONCast :: [String] -> [Actor]  -- Extracts the cast of the show
-sJSONCast = map stripShit . init . splitOn ", " . dropWhile (/=':') . head . filter (isInfixOf "\"cast\":")
+sJSONCast = filter (/="") . map stripShit . splitOn ", " . stripShit . dropWhile (/=':') . head . filter (isInfixOf "\"cast\":")
 
 notExcluded :: Details -> Bool  -- Rather than use a lambda function in filter, I'd rather just use an actual function, again for clarity
 notExcluded (s, _) = not (elem s excludedShows)
@@ -81,7 +91,7 @@ allDetails' :: [String] -> Details    -- Adding the year to the title
 allDetails' s = (sJSONTitle s ++ " (" ++ sJSONYear s ++ ")", sJSONCast s)
 
 allDetails :: IO [Details]    -- Returning a list of all shows, in a tuple of the form (ShowName, [Actor])
-allDetails = sJSONShows >>= return . filter notExcluded . map allDetails'
+allDetails = sJSONShows >>= return . filter (\d -> notExcluded d && length (snd d) > 1) . map allDetails'  -- Get rid of any show with no or 1 recorded Actor/s
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
@@ -93,9 +103,9 @@ allFellows :: Actor -> [Details] -> [Actor] -- Then a helper, a function to gene
 allFellows a = filter (/=a) . rmDups . flatten . filter (elem a) . map snd
 
 fellowAdj' :: [Adj] -> [Details] -> [Actor] -> [Adj]  -- fellowAdj' takes a list of Adjs, and a list of explored Actors, and goes through each Adj generating
-fellowAdj' [] _ _               = []                  -- a list of new Adjs based on the head of the Actor list of each one
-fellowAdj' ((a, i):adjs) d done = [(new:a, i+1) | new <- newFellows] ++ fellowAdj' adjs d (newFellows ++ done)
-                                  where newFellows = [n | n <- allFellows (head a) d, not (elem n done || elem n a)]
+fellowAdj' [] _ _             = []                  -- a list of new Adjs based on the head of the Actor list of each one
+fellowAdj' ((a, i):as) d done = [(new:a, i+1) | new <- newFellows] ++ fellowAdj' as d (newFellows ++ done)
+                                where newFellows = [n | n <- allFellows (head a) d, not (elem n done || elem n a)]
 
 fellowAdj :: [Adj] -> [Details] -> [Actor] -> [Adj] -- fellowAdj is then a recursive function that takes the list generated by fellowAdj'
 fellowAdj [] _ _    = []                            -- and reapplies fellowAdj' to that list, appending it to the first list
