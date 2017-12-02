@@ -5,13 +5,11 @@
 -- - System.Directory so we can muck about with files and directories
 -- - And Data.Text and Data.Text.IO for stricter file reading
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
-import Data.List
-import Data.Ord
-import System.Directory
-import Data.List.Split
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
-
+import Utils
+import Data.List                      (isPrefixOf, isInfixOf, sort, group, intersperse, sortBy)
+import Data.List.Split                (splitOn)
+import Data.Ord                       (comparing)
+--
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Now defining some types:
 -- - Actor and Role for type clarity, otherwise it'd be lots of `String -> String` going on
@@ -78,24 +76,6 @@ roleVal s
   | s == "Stage Manager"                          = 5
   | s == "Technical Operator"                     = 5
   | otherwise                                     = 0
-
-
----------------------------------------------------------------------------------------------------------------------------------------------------------------
--- Helpers!
----------------------------------------------------------------------------------------------------------------------------------------------------------------
-flatten :: [[a]] -> [a]                     -- Flattening lists of lists
-flatten ass = [a | as <- ass, a <- as]
-rmDups :: (Eq a, Ord a) => [a] -> [a]       -- Removing duplicate entries in a sortable list
-rmDups = map head . group . sort
-myReadFile :: FilePath -> IO String
-myReadFile = fmap T.unpack . TIO.readFile
-stripShit :: String -> String   -- Stripping out any characters that might surround an actor or show's name
-stripShit s                     -- Whitespace, quotation marks, colons, etc.
- | hs == ' ' || hs == '\"' || hs == '\'' || hs == '[' || hs == ':' || hs == '\\' = stripShit (tail s)
- | ls == ' ' || ls == '\"' || ls == '\'' || ls == ']' || ls == ',' || ls == '\\' = stripShit (init s)
- | otherwise                                                                     = s
- where hs = head s
-       ls = last s
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- First we've to get the 
