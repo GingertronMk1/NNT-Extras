@@ -140,7 +140,7 @@ main = getLine >>= main'
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-everyone = jsonData >>= return . sortBy (comparing snd) . map (nameRolesVals . nameRoles)
+--everyone = jsonData >>= return . sortBy (comparing snd) . map (nameRolesVals . nameRoles)
 
 
 zeroRoles = namesRoles >>= putStrLn . flatten 
