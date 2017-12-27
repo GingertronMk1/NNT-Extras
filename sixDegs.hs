@@ -31,7 +31,7 @@ searchJSON :: FilePath
 searchJSON = "search.json"
 
 excludedShows :: [ShowName]
-excludedShows = ["Charity Gala (2015-16)"] ++ ["Freshers' Fringe (" ++ show (n) ++ "-" ++ drop 2 (show (n+1)) ++ ")" | n <- [2010..2017]]
+excludedShows = ["Charity Gala (2015-16)"] ++ ["Freshers' Fringe (" ++ show (n) ++ "-" ++ (drop 2 . show . (+1)) n ++ ")" | n <- [2010..2017]]
 
 adjFile :: FilePath
 adjFile = "Adjs.txt"
@@ -60,7 +60,7 @@ allDetails' :: [String] -> Details    -- Adding the year to the title
 allDetails' s = (sJSONTitle s ++ " " ++ sJSONYear s, sJSONCast s)
 
 allDetails :: IO [Details]  -- Returning a list of all shows, in a tuple of the form Details
-allDetails = sJSONShows >>= return . rmDups . filter (\(s, as) -> not (elem s excludedShows) && length as > 1) . map allDetails'  -- Get rid of any show with < 2 recorded Actors
+allDetails = sJSONShows >>= return . sort . filter (\(s, as) -> not (elem s excludedShows) && length as > 1) . map allDetails'  -- Get rid of any show with < 2 recorded Actors
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- Finally, using everything above here, we can get two Actors, and return a printed String with the shortest link between them.
@@ -132,13 +132,6 @@ ppAdj (as, i) = (flatten . intersperse " -> ") as ++ "\n"
 
 main = do ad <- allDetails
           let str = (map ppAdj . sortBy (comparing snd) . flatten . map (\a -> adjLim a limit ad) . allActors) ad
-          putStrLn $ (flatten str) ++ "\n" ++ (show . length) str
-          writeFile adjFile $ flatten str
-
-ppAllDetails' = putStr . flatten . map (\(s, as) -> s ++ "\n" ++ replicate (length s) '-' ++ "\n" ++ flatten ["  | " ++ a ++ "\n" | a <- as] ++ replicate 64 '=' ++ "\n")
-
-ppAllDetails :: IO ()
-ppAllDetails = allDetails >>= ppAllDetails'
-
-readAdjs :: IO [Adj]
-readAdjs = myReadFile adjFile >>= return . map ((\l -> (l, (length l) - 1)) . splitOn " -> ") . lines
+          let flstr = flatten str
+          putStrLn $ flstr ++ "\n" ++ (show . length) str
+          writeFile adjFile flstr
